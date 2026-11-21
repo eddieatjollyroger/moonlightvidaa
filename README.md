@@ -70,15 +70,15 @@ copies it into the existing cert volume and restarts `moonlight-web`.
    (grey cloud, DNS only). Cloudflare proxy cannot reach a LAN IP.
 2. Cloudflare -> My Profile -> API Tokens -> Create Token -> "Edit zone DNS",
    scoped to your zone. Copy the token.
-3. Copy the `.env.example` in this kit to `.env` next to your compose file on
-   the Pi, then edit it:
+3. Copy `certbot.env.example` from this kit to
+   `/mnt/ssd1/moonlight-web/certbot.env`, then edit it:
 ```
-MOONLIGHT_DOMAIN=moonlight.YOURDOMAIN.com
+CERTBOT_DOMAIN=moonlight.YOURDOMAIN.com
 CERTBOT_EMAIL=you@example.com
 ```
 4. On the Pi, create the Cloudflare credentials and hook folder:
 ```
-sudo mkdir -p /mnt/ssd1/moonlight-web/letsencrypt /mnt/ssd1/moonlight-web/certbot-hooks
+sudo mkdir -p /mnt/ssd1/moonlight-web/letsencrypt /mnt/ssd1/moonlight-web/certbot-hooks /mnt/ssd1/moonlight-web/certs /mnt/ssd1/moonlight-web/data
 sudo cp /home/eddie/moonlight-web-test/files/certbot/deploy-cert.py /mnt/ssd1/moonlight-web/certbot-hooks/
 sudo cp /home/eddie/moonlight-web-test/files/certbot/run-certbot.sh /mnt/ssd1/moonlight-web/certbot-hooks/
 sudo chmod 755 /mnt/ssd1/moonlight-web/certbot-hooks/*.sh /mnt/ssd1/moonlight-web/certbot-hooks/*.py
@@ -95,6 +95,11 @@ docker logs --tail 40 certbot
 docker logs --tail 20 moonlight-web
 ```
 6. Sidee tile URL: `https://moonlight.YOURDOMAIN.com:8443/`
+
+All persistent files live under `/mnt/ssd1/moonlight-web/`:
+`letsencrypt/`, `certs/`, `data/`, `certbot-hooks/`, `cloudflare.ini`,
+`certbot.env`. The `/etc/...` paths appear only **inside containers** as mount
+targets; nothing is created under `/etc` on the Pi host.
 
 Renewal runs every 12h inside certbot; it only copies and restarts when a cert
 is actually renewed. The key is installed as UID 999 mode 600 so

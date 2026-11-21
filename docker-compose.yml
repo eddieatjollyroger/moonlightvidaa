@@ -32,8 +32,8 @@ services:
     pull_policy: missing                # official image, arm64 available
     environment:
       - TZ=Atlantic/Azores
-      - CERTBOT_DOMAIN=${MOONLIGHT_DOMAIN}
-      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+    env_file:
+      - /mnt/ssd1/moonlight-web/certbot.env   # everything stays under /mnt/ssd1
     volumes:
       - /mnt/ssd1/moonlight-web/letsencrypt:/etc/letsencrypt
       - /mnt/ssd1/moonlight-web/cloudflare.ini:/etc/cloudflare.ini:ro
