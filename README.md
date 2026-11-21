@@ -40,9 +40,8 @@ still works. They are bind-mounted over the image's own files.
 
 ```
 sudo mkdir -p /mnt/ssd1/moonlight-web/static
-sudo cp /home/eddie/moonlight-web-test/files/static-patch/stream.js /mnt/ssd1/moonlight-web/static/stream.js
-sudo cp /home/eddie/moonlight-web-test/files/static-patch/478.js /mnt/ssd1/moonlight-web/static/478.js
-sudo chmod 644 /mnt/ssd1/moonlight-web/static/*.js
+sudo cp /home/eddie/moonlight-web-test/files/static-patch/{stream.js,478.js,stream.html} /mnt/ssd1/moonlight-web/static/
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/*
 sudo mkdir -p /mnt/ssd1/moonlight-web/certs /mnt/ssd1/moonlight-web/data
 sudo cp /home/eddie/moonlight-web-test/files/cert.pem /home/eddie/moonlight-web-test/files/key.pem /mnt/ssd1/moonlight-web/certs/
 sudo chmod 644 /mnt/ssd1/moonlight-web/certs/*.pem
@@ -59,6 +58,23 @@ docker logs --tail 40 moonlight-web
 
 TV -> `https://192.168.1.69:8443/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
+
+`stream.html` loads `stream.js?tv=3` so the TV cannot silently reuse a cached
+copy of the old bundle.
+
+### If WebCodecs still fails: force the Media Source fallback
+
+`files/static-patch-mse/` contains the same bundles plus a shim that removes
+`window.VideoDecoder` before the app probes pipes. The app then uses its built-in
+H.264 MediaSource decoder instead. Higher latency, but it avoids WebCodecs
+entirely. To switch:
+```
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse/{stream.js,478.js,stream.html} /mnt/ssd1/moonlight-web/static/
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/*
+docker compose restart moonlight-web
+```
+Reload the TV page. If it works you will see a notice about increased latency -
+that is expected and confirms the fallback path.
 
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 

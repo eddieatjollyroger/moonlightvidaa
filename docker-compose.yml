@@ -20,6 +20,7 @@ services:
       # TV-safe WebCodecs probe (VIDAA Chrome 111 throws on AV1 codec strings)
       - /mnt/ssd1/moonlight-web/static/stream.js:/moonlight-web/static/stream.js:ro
       - /mnt/ssd1/moonlight-web/static/478.js:/moonlight-web/static/478.js:ro
+      - /mnt/ssd1/moonlight-web/static/stream.html:/moonlight-web/static/stream.html:ro
     deploy:
       resources:
         limits:
