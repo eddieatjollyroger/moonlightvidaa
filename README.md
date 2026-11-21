@@ -43,7 +43,7 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=11`);
+- both `stream.js` and `478.js` are cache-busted (`?tv=12`);
 - `stream.html` gives the CSS vars that position/resize the video sane defaults
   and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
   the on-screen-keyboard event that normally seeds those vars never fires, so
@@ -70,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=11`, which in turn loads `478.js?tv=11`, so the
+`stream.html` loads `stream.js?tv=12`, which in turn loads `478.js?tv=12`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
@@ -228,7 +228,7 @@ Both the menu page and the stream page now treat the remote Back key
 The line and this note will be removed once the reported `V` value confirms
 the sizing fix.
 
-### Latest changes (tv=11)
+### Latest changes (tv=12)
 
 - `index.html` forces `useSelectElementPolyfill` in `mlSettings` so dropdowns
   become clickable `<p>` rows instead of native `<select>` elements, and
@@ -238,17 +238,25 @@ the sizing fix.
   diagnostic also reports `S` (screen size) and `D` (device pixel ratio) to
   distinguish a small popup window from a scaling problem.
 
-### tv=11 diagnostics
+### tv=12 diagnostics
 
 Green line fields: `V` video size, `W` viewport, `O` popup (`window.opener`),
 `F` fullscreen active, `OW` outer window size, `S` screen size, `D` DPR.
 `W < S` means the browser window is smaller than the TV screen; the stream
 tries `resizeTo`/`moveTo` and all fullscreen APIs on load and on any key/tap.
 
-### tv=11
+### tv=12
 
 `viewport` meta now requests an explicit `1920x1080` layout (matching the
 reported screen) instead of `device-width`, in both `index.html` and
 `stream.html`, with a JS fallback that rewrites it to `screen.width/height`.
 This targets the case where the browser reports a 1280x720 layout viewport on
 a 1920x1080 screen.
+
+### tv=12
+
+Adds a focused green `OK = FILL SCREEN` button on the stream page. Pressing OK
+is a genuine user gesture, so it can call `requestFullscreen()` and
+`window.open(..., '_self', 'fullscreen=yes')` when automatic attempts are
+blocked. If `F` stays 0 after pressing OK, the browser window size is enforced
+outside the web page (tile/browser launch mode).
