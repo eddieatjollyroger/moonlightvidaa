@@ -135,7 +135,10 @@ screen with big targets — on VIDAA the remote has no mouse coordinates so the
 app otherwise opens it at 0,0 in the unreachable top-left corner. When that menu
 opens, focus jumps to its first item automatically. Text/number fields are
 select-all on focus so typing replaces the value instead of prepending digits to
-it. It is mounted over the image's `index.html`.
+it; range sliders and checkboxes keep normal arrow navigation. It also forces
+`matchMedia("(display-mode: standalone)")` to report true so the stream opens in
+the same full-screen window instead of a small `window.open` popup. It is
+mounted over the image's `index.html`.
 
 ```
 sudo cp /home/eddie/moonlight-web-test/files/tv-ui/index.html /mnt/ssd1/moonlight-web/static/index.html
@@ -148,6 +151,16 @@ Add this volume line to `moonlight-web`:
 ```
 Reload the tile page. If the UI is now too small or too large, edit the two
 numbers in the injected `<style>` on the Pi and reload — no TV changes needed.
+
+To confirm the TV is really getting these files (rather than a cached copy):
+```
+curl -sk https://127.0.0.1/index.html | grep -o 'tv-nav'
+curl -sk https://127.0.0.1/stream.html | grep -o 'stream.js?tv=[0-9]*'
+curl -sk https://127.0.0.1/stream.js | head -c 100
+```
+The last command should start with the `tv-stream-fix` style injection. If any
+of these fail, the matching `:ro` volume line is missing from `moonlight-web` in
+the Pi's compose file.
 
 ### If the existing Sidee tile still shows error 102
 

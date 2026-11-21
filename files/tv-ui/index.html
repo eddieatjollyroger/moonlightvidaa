@@ -12,7 +12,23 @@ body{zoom:0.75!important}
 (function(){
   var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display, .context-menu-element';
   var menu=document.getElementById('context-menu');
-  function editable(e){var t=(e&&e.tagName||'').toLowerCase();return t==='input'||t==='textarea'||t==='select'||!!(e&&e.isContentEditable);}
+  // Sidee tiles are not "standalone", so the app opens the stream in a new
+  // popup window. Force same-window navigation so the video uses the full
+  // fullscreen tile viewport instead of a small popup.
+  var _mm=window.matchMedia?window.matchMedia.bind(window):null;
+  if(_mm)window.matchMedia=function(q){
+    if(/display-mode\s*:\s*standalone/i.test(q))return{matches:true,media:q,onchange:null,addListener:function(){},removeListener:function(){},addEventListener:function(){},removeEventListener:function(){},dispatchEvent:function(){return false}};
+    return _mm(q);
+  };
+  // Only text-like fields capture arrow keys. Range sliders, checkboxes and
+  // buttons must keep normal remote navigation.
+  function editable(e){
+    var t=(e&&e.tagName||'').toLowerCase();
+    if(t==='textarea'||t==='select'||(e&&e.isContentEditable))return true;
+    if(t!=='input')return false;
+    var ty=(e.type||'text').toLowerCase();
+    return !/^(range|checkbox|radio|button|submit|reset|file|color|image)$/.test(ty);
+  }
   function items(){return Array.prototype.slice.call(document.querySelectorAll(SEL)).filter(function(e){
     var r=e.getBoundingClientRect(),s=getComputedStyle(e);
     return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';
