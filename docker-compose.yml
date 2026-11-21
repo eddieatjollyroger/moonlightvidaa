@@ -49,16 +49,14 @@ services:
   # LAN-only, no TV/system changes. View results at http://192.168.1.69:8484/logs
   ml-metrics-proxy:
     container_name: ml-metrics-proxy
-    image: "alpine/socat:latest"
+    image: "node:20-alpine"
     pull_policy: missing
     network_mode: host
-    entrypoint: ["socat"]
-    command:
-      - "OPENSSL-LISTEN:8444,fork,reuseaddr,cert=/certs/cert.pem,key=/certs/key.pem"
-      - "TCP:192.168.1.69:8484"
     volumes:
       - /mnt/ssd1/moonlight-web/certs/cert.pem:/certs/cert.pem:ro
       - /mnt/ssd1/moonlight-web/certs/key.pem:/certs/key.pem:ro
+      - /home/eddie/moonlight-web-test/files/ml-metrics-proxy.js:/app.js:ro
+    command: ["node", "/app.js"]
     restart: unless-stopped
 
   certbot:
