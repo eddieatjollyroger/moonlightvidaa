@@ -87,6 +87,37 @@ docker compose restart moonlight-web
 Reload the TV page. If it works you will see a notice about increased latency -
 that is expected and confirms the fallback path.
 
+### A/B test: WebSocket + MediaSource (VIDAA hardware decoder)
+
+The 4K receiver in `jh1909/vidaaOS-moonlight` gets its low latency from VIDAA's
+hardware ES-player: fMP4 into `<video>` via MediaSource, with the live edge
+trimmed to ~0.5 s. That native path needs TV system writes and is not used here.
+The same *browser* primitive is available in `moonlight-web-stream`: force the
+WebSocket transport, remove WebCodecs, and the app feeds fMP4 to MediaSource.
+
+`files/static-patch-mse/stream.js` is the current patch with a small shim that
+deletes `window.VideoDecoder` before capability probing. Select it with:
+
+```
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse/stream.js /mnt/ssd1/moonlight-web/static/stream.js
+sudo cp /home/eddie/moonlight-web-test/files/static-patch/stream.html /mnt/ssd1/moonlight-web/static/stream.html
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/stream.js /mnt/ssd1/moonlight-web/static/stream.html
+```
+
+Then open `https://moonlight.joaopacheco.me/?mse=1` once on the TV. The page
+shim persists `dataTransport=websocket`, `canvasRenderer=false` and redirects
+to the normal home page. Start a stream as usual. Metrics will contain
+`mse:1` plus `ahead` (seconds of buffered video ahead of `currentTime`),
+`ready`, `ct` and `w`. Compare smoothness and `ahead` against the WebRTC path.
+
+To go back: copy `files/static-patch/stream.js` over `stream.js` on the Pi and
+open `https://moonlight.joaopacheco.me/?webrtc=1` once. Both switches only
+change browser `localStorage`; no TV or Pi system files are modified.
+
+`ahead` staying under ~0.6 s with smooth motion would confirm the hardware
+MediaSource path is the browser-only winner. If `ahead` grows, the next step is
+an IDR-aligned live-edge seek (the repo's finding 32), not more network tuning.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
@@ -151,6 +182,12 @@ Add this volume line to `moonlight-web`:
 ```
 Reload the tile page. If the UI is now too small or too large, edit the two
 numbers in the injected `<style>` on the Pi and reload — no TV changes needed.
+
+Bitrate has no usable text-entry path on VIDAA (the range slider takes focus).
+The shim hides that slider and **OK cycles** the highlighted Bitrate row through
+`2000 / 4000 / 6000 / 8000 / 10000` Kbps, firing the app's change event each
+press. FPS still uses normal digit entry. `?mse=1` / `?webrtc=1` on the home URL
+are reversible A/B switches for the video path (see below).
 
 The 4K TV / 1080p PC mismatch is **not** why the video is small: `object-fit:contain`
 scales the 1080p source to whatever viewport size the browser reports. If the

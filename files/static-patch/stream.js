@@ -10,6 +10,24 @@
     }
   }catch(e){}
   var _fetch=window.fetch?window.fetch.bind(window):null;
+  // WebSocket + MediaSource mode has no RTCPeerConnection. Report the live-edge
+  // buffer so we can tell hardware-decode latency from decode throughput.
+  setInterval(function(){
+    if(pcs.length)return;
+    var v=document.querySelector('.video-stream');
+    if(!v)return;
+    var b=v.buffered&&v.buffered.length?v.buffered.end(v.buffered.length-1):0;
+    var o={mse:1,ready:v.readyState,ct:Math.round((v.currentTime||0)*100)/100,
+      ahead:Math.round(Math.max(0,b-(v.currentTime||0))*1000)/1000,
+      paused:v.paused?1:0,w:(v.videoWidth||0)+'x'+(v.videoHeight||0),
+      vis:document.visibilityState};
+    try{
+      if(_fetch)_fetch('https://moonlight.joaopacheco.me:8444/api/log',{
+        method:'POST',body:'MLSTATS '+JSON.stringify(o),
+        mode:'no-cors',keepalive:true
+      });
+    }catch(e){}
+  },4000);
   var pcs=[],Orig=window.RTCPeerConnection;
   if(Orig){
     window.RTCPeerConnection=function(){

@@ -47,6 +47,21 @@ body{zoom:0.75!important}
     if(!('canvasRenderer' in _st)){
       _st.canvasRenderer=true;_changed=true;
     }
+    // Reversible A/B switch. Open /?mse=1 once to use WebSocket + MediaSource
+    // (VIDAA's hardware ES-player path). Open /?webrtc=1 to go back.
+    // No TV system changes; only our own mlSettings in browser storage.
+    try{
+      var _q=location.search||'';
+      if(/[?&]mse=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='websocket'){_st.dataTransport='websocket';_changed=true;}
+        if(_st.canvasRenderer!==false){_st.canvasRenderer=false;_changed=true;}
+        if(_st.forceVideoElementRenderer!==false){_st.forceVideoElementRenderer=false;_changed=true;}
+      }
+      if(/[?&]webrtc=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='auto'){_st.dataTransport='auto';_changed=true;}
+        if(_st.canvasRenderer!==true){_st.canvasRenderer=true;_changed=true;}
+      }
+    }catch(e){}
     if(_changed)localStorage.setItem('mlSettings',JSON.stringify(_st));
   }catch(e){}
   // Belt and braces: even if the standalone check is bypassed, never let the
