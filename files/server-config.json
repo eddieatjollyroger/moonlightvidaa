@@ -1,0 +1,9 @@
+{
+  "web_server": {
+    "bind_address": "0.0.0.0:8443",
+    "certificate": {
+      "private_key_pem": "./server/key.pem",
+      "certificate_pem": "./server/cert.pem"
+    }
+  }
+}

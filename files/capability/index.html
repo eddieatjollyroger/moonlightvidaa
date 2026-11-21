@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moonlight TV Check</title>
+<style>
+  body { background:#0b0b0c; color:#eee; font:28px/1.5 sans-serif; margin:0; padding:32px; }
+  h1 { font-size:44px; margin:0 0 8px; }
+  .hint { font-size:22px; color:#aaa; margin-bottom:24px; }
+  .row { padding:10px 16px; margin:6px 0; border-radius:10px; background:#1a1a1d; }
+  .yes { border-left:8px solid #3ddc84; }
+  .no  { border-left:8px solid #ff5c5c; }
+  .maybe { border-left:8px solid #ffc107; }
+  b { display:inline-block; min-width:360px; }
+  .v { color:#9ad; font-size:24px; word-break:break-all; }
+  #verdict { font-size:40px; font-weight:bold; margin:24px 0; padding:20px; border-radius:12px; }
+  .good { background:#123a22; }
+  .bad { background:#3a1212; }
+</style>
+</head>
+<body>
+<h1>MOONLIGHT TV CHECK</h1>
+<div class="hint">Reading browser capabilities. Wait a moment, then report the lines below.</div>
+<div id="verdict">CHECKING...</div>
+<div id="rows"></div>
+<script>
+(function () {
+  var rows = document.getElementById('rows');
+  var verdict = document.getElementById('verdict');
+  var score = { ok: 0, bad: 0, maybe: 0 };
+
+  function add(label, value, state) {
+    var d = document.createElement('div');
+    d.className = 'row ' + state;
+    d.innerHTML = '<b>' + label + '</b><span class="v">' + String(value) + '</span>';
+    rows.appendChild(d);
+    if (state === 'yes') score.ok++;
+    else if (state === 'no') score.bad++;
+    else score.maybe++;
+    finish();
+  }
+
+  function finish() {
+    if (score.ok + score.bad + score.maybe < 8) return;
+    var good = score.bad === 0;
+    verdict.textContent = good ? 'RESULT: LIKELY WORKS' : 'RESULT: SOME BLOCKERS';
+    verdict.className = good ? 'good' : 'bad';
+  }
+
+  add('Browser', navigator.userAgent, 'maybe');
+  add('Secure (HTTPS)', !!window.isSecureContext, window.isSecureContext ? 'yes' : 'no');
+  add('WebRTC', typeof window.RTCPeerConnection !== 'undefined',
+      typeof window.RTCPeerConnection !== 'undefined' ? 'yes' : 'no');
+  add('WebCodecs', typeof window.VideoDecoder !== 'undefined',
+      typeof window.VideoDecoder !== 'undefined' ? 'yes' : 'no');
+  add('Gamepad API', !!(navigator.getGamepads), navigator.getGamepads ? 'yes' : 'no');
+  add('Keyboard lock', !!(navigator.keyboard && navigator.keyboard.lock),
+      (navigator.keyboard && navigator.keyboard.lock) ? 'maybe' : 'no');
+  add('WebAssembly', typeof window.WebAssembly !== 'undefined',
+      typeof window.WebAssembly !== 'undefined' ? 'yes' : 'no');
+  add('MediaSource', typeof window.MediaSource !== 'undefined',
+      typeof window.MediaSource !== 'undefined' ? 'yes' : 'no');
+
+  if (window.RTCRtpReceiver && RTCRtpReceiver.getCapabilities) {
+    try {
+      var caps = RTCRtpReceiver.getCapabilities('video');
+      var list = caps && caps.codecs ? caps.codecs.map(function (c) { return c.mimeType; }).join(' ') : 'none';
+      add('RTC codecs', list || 'none', list && list !== 'none' ? 'yes' : 'no');
+    } catch (e) { add('RTC codecs', 'error: ' + e.message, 'no'); }
+  } else {
+    add('RTC codecs', 'not available', 'no');
+  }
+
+  if (typeof window.VideoDecoder !== 'undefined') {
+    var checks = [
+      ['H264 decode', 'avc1.640028'],
+      ['HEVC decode', 'hvc1.1.6.L93.B0'],
+      ['VP9 decode', 'vp09.00.10.08']
+    ];
+    checks.forEach(function (c) {
+      try {
+        VideoDecoder.isConfigSupported({ codec: c[1] }).then(function (r) {
+          add(c[0], r.supported, r.supported ? 'yes' : 'no');
+        }).catch(function (e) { add(c[0], 'error', 'no'); });
+      } catch (e) { add(c[0], 'unsupported', 'no'); }
+    });
+  }
+})();
+</script>
+</body>
+</html>

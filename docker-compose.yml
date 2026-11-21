@@ -1,0 +1,23 @@
+# Paste this service into your existing compose file, or use this file standalone.
+# network_mode: host is deliberate: WebRTC UDP binds straight to the Pi, no DNAT.
+services:
+  moonlight-web:
+    container_name: moonlight-web
+    image: "mrcreativ3001/moonlight-web-stream:latest"
+    pull_policy: missing                # published multi-arch image, arm64 verified
+    network_mode: host                  # no ports: mapping - binds 8443 + UDP 40000-40100 directly
+    environment:
+      - TZ=Atlantic/Azores
+      - BIND_ADDRESS=0.0.0.0:8443       # host port, because network_mode: host
+      - SSL_CERTIFICATE=/moonlight-web/certs/cert.pem
+      - SSL_PRIVATE_KEY=/moonlight-web/certs/key.pem
+      - WEBRTC_PORT_RANGE=40000:40100
+      - WEBRTC_NAT_1TO1_HOST=192.168.1.69
+    volumes:
+      - /mnt/ssd1/moonlight-web/certs:/moonlight-web/certs:ro
+      - /mnt/ssd1/moonlight-web/data:/moonlight-web/server   # users + pairing state
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'                   # relay only, no transcode; raise if needed
+    restart: unless-stopped
