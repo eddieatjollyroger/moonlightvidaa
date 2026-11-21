@@ -5,87 +5,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moonlight TV Check</title>
 <style>
-  body { background:#0b0b0c; color:#eee; font:28px/1.5 sans-serif; margin:0; padding:32px; }
-  h1 { font-size:44px; margin:0 0 8px; }
-  .hint { font-size:22px; color:#aaa; margin-bottom:24px; }
-  .row { padding:10px 16px; margin:6px 0; border-radius:10px; background:#1a1a1d; }
+  body { background:#0b0b0c; color:#eee; font:26px/1.45 sans-serif; margin:0; padding:28px; }
+  h1 { font-size:42px; margin:0 0 8px; }
+  .hint { font-size:20px; color:#aaa; margin-bottom:20px; }
+  .row { padding:8px 14px; margin:5px 0; border-radius:10px; background:#1a1a1d; }
   .yes { border-left:8px solid #3ddc84; }
   .no  { border-left:8px solid #ff5c5c; }
   .maybe { border-left:8px solid #ffc107; }
-  b { display:inline-block; min-width:360px; }
-  .v { color:#9ad; font-size:24px; word-break:break-all; }
-  #verdict { font-size:40px; font-weight:bold; margin:24px 0; padding:20px; border-radius:12px; }
-  .good { background:#123a22; }
-  .bad { background:#3a1212; }
+  b { display:inline-block; min-width:330px; }
+  .v { color:#9ad; font-size:22px; word-break:break-all; }
+  #verdict { font-size:34px; font-weight:bold; margin:20px 0; padding:16px; border-radius:12px; background:#123a22; }
+  .done { background:#1b2a3a; }
 </style>
 </head>
 <body>
-<h1>MOONLIGHT TV CHECK</h1>
-<div class="hint">Reading browser capabilities. Wait a moment, then report the lines below.</div>
+<h1>MOONLIGHT TV CHECK 2</h1>
+<div class="hint">Wait a few seconds, then report EVERY line below.</div>
 <div id="verdict">CHECKING...</div>
 <div id="rows"></div>
 <script>
 (function () {
   var rows = document.getElementById('rows');
   var verdict = document.getElementById('verdict');
-  var score = { ok: 0, bad: 0, maybe: 0 };
+  var queued = 0, done = 0;
+
+  function finishRow() {
+    done++;
+    if (done >= queued) {
+      verdict.textContent = 'DONE - REPORT ALL LINES';
+      verdict.className = 'done';
+    }
+  }
 
   function add(label, value, state) {
     var d = document.createElement('div');
     d.className = 'row ' + state;
     d.innerHTML = '<b>' + label + '</b><span class="v">' + String(value) + '</span>';
     rows.appendChild(d);
-    if (state === 'yes') score.ok++;
-    else if (state === 'no') score.bad++;
-    else score.maybe++;
-    finish();
+    finishRow();
   }
 
-  function finish() {
-    if (score.ok + score.bad + score.maybe < 8) return;
-    var good = score.bad === 0;
-    verdict.textContent = good ? 'RESULT: LIKELY WORKS' : 'RESULT: SOME BLOCKERS';
-    verdict.className = good ? 'good' : 'bad';
+  function testCodec(label, codec) {
+    queued++;
+    if (typeof window.VideoDecoder === 'undefined' || !VideoDecoder.isConfigSupported) {
+      add(label, 'no VideoDecoder', 'no');
+      return;
+    }
+    try {
+      VideoDecoder.isConfigSupported({ codec: codec }).then(function (r) {
+        add(label, r.supported, r.supported ? 'yes' : 'no');
+      }).catch(function (e) {
+        add(label, 'THROWS: ' + (e && e.message ? e.message : e), 'no');
+      });
+    } catch (e) {
+      add(label, 'THROWS: ' + (e && e.message ? e.message : e), 'no');
+    }
   }
 
+  function testConfig(label, extra) {
+    queued++;
+    if (typeof window.VideoDecoder === 'undefined' || !VideoDecoder.isConfigSupported) {
+      add(label, 'no VideoDecoder', 'no');
+      return;
+    }
+    var cfg = { codec: 'avc3.42E01E', codedWidth: 1280, codedHeight: 720 };
+    for (var k in extra) cfg[k] = extra[k];
+    try {
+      VideoDecoder.isConfigSupported(cfg).then(function (r) {
+        add(label, r.supported, r.supported ? 'yes' : 'no');
+      }).catch(function (e) {
+        add(label, 'THROWS: ' + (e && e.message ? e.message : e), 'no');
+      });
+    } catch (e) {
+      add(label, 'THROWS: ' + (e && e.message ? e.message : e), 'no');
+    }
+  }
+
+  queued += 7;
   add('Browser', navigator.userAgent, 'maybe');
   add('Secure (HTTPS)', !!window.isSecureContext, window.isSecureContext ? 'yes' : 'no');
-  add('WebRTC', typeof window.RTCPeerConnection !== 'undefined',
-      typeof window.RTCPeerConnection !== 'undefined' ? 'yes' : 'no');
-  add('WebCodecs', typeof window.VideoDecoder !== 'undefined',
-      typeof window.VideoDecoder !== 'undefined' ? 'yes' : 'no');
-  add('Gamepad API', !!(navigator.getGamepads), navigator.getGamepads ? 'yes' : 'no');
-  add('Keyboard lock', !!(navigator.keyboard && navigator.keyboard.lock),
-      (navigator.keyboard && navigator.keyboard.lock) ? 'maybe' : 'no');
-  add('WebAssembly', typeof window.WebAssembly !== 'undefined',
-      typeof window.WebAssembly !== 'undefined' ? 'yes' : 'no');
-  add('MediaSource', typeof window.MediaSource !== 'undefined',
-      typeof window.MediaSource !== 'undefined' ? 'yes' : 'no');
-
+  add('WebRTC', typeof window.RTCPeerConnection !== 'undefined', typeof window.RTCPeerConnection !== 'undefined' ? 'yes' : 'no');
+  add('WebCodecs', typeof window.VideoDecoder !== 'undefined', typeof window.VideoDecoder !== 'undefined' ? 'yes' : 'no');
+  add('Gamepad API', !!navigator.getGamepads, navigator.getGamepads ? 'yes' : 'no');
+  add('WebAssembly', typeof window.WebAssembly !== 'undefined', typeof window.WebAssembly !== 'undefined' ? 'yes' : 'no');
   if (window.RTCRtpReceiver && RTCRtpReceiver.getCapabilities) {
     try {
       var caps = RTCRtpReceiver.getCapabilities('video');
       var list = caps && caps.codecs ? caps.codecs.map(function (c) { return c.mimeType; }).join(' ') : 'none';
-      add('RTC codecs', list || 'none', list && list !== 'none' ? 'yes' : 'no');
-    } catch (e) { add('RTC codecs', 'error: ' + e.message, 'no'); }
-  } else {
-    add('RTC codecs', 'not available', 'no');
-  }
+      add('RTC codecs', list || 'none', 'maybe');
+    } catch (e) { add('RTC codecs', 'error', 'no'); }
+  } else { add('RTC codecs', 'not available', 'no'); }
 
-  if (typeof window.VideoDecoder !== 'undefined') {
-    var checks = [
-      ['H264 decode', 'avc1.640028'],
-      ['HEVC decode', 'hvc1.1.6.L93.B0'],
-      ['VP9 decode', 'vp09.00.10.08']
-    ];
-    checks.forEach(function (c) {
-      try {
-        VideoDecoder.isConfigSupported({ codec: c[1] }).then(function (r) {
-          add(c[0], r.supported, r.supported ? 'yes' : 'no');
-        }).catch(function (e) { add(c[0], 'error', 'no'); });
-      } catch (e) { add(c[0], 'unsupported', 'no'); }
-    });
-  }
+  // Exact codec strings Moonlight Web uses (old check used avc1/hvc1 instead)
+  testCodec('codec avc1.640028', 'avc1.640028');
+  testCodec('codec avc3.42E01E', 'avc3.42E01E');
+  testCodec('codec avc3.640032', 'avc3.640032');
+  testCodec('codec hvc1.1.6.L93.B0', 'hvc1.1.6.L93.B0');
+  testCodec('codec hev1.1.6.L93.B0', 'hev1.1.6.L93.B0');
+  testCodec('codec av01.0.04M.08', 'av01.0.04M.08');
+
+  // Exact config variants Moonlight Web tries, in order
+  testConfig('cfg hw+latency', { hardwareAcceleration: 'prefer-hardware', optimizeForLatency: true });
+  testConfig('cfg latency', { optimizeForLatency: true });
+  testConfig('cfg plain', {});
 })();
 </script>
 </body>
