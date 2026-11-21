@@ -119,6 +119,45 @@ docker logs --tail 20 moonlight-web
 ```
 6. Sidee tile URL: `https://moonlight.YOURDOMAIN.com/` (no port, trailing slash)
 
+### TV-sized UI and remote navigation
+
+The stock `index.html` uses `rem` sizes and has no keyboard navigation, so on
+VIDAA everything looks oversized and the remote cannot select tiles.
+`files/tv-ui/index.html` injects a scale fix (`html` font-size 12px, `body`
+zoom 0.75) plus a navigation shim: arrow keys move a yellow focus ring between
+tiles/buttons and OK (Enter) activates the focused item. It is mounted over
+the image's `index.html`.
+
+```
+sudo cp /home/eddie/moonlight-web-test/files/tv-ui/index.html /mnt/ssd1/moonlight-web/static/index.html
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/index.html
+docker compose up -d --force-recreate moonlight-web
+```
+Add this volume line to `moonlight-web`:
+```
+      - /mnt/ssd1/moonlight-web/static/index.html:/moonlight-web/static/index.html:ro
+```
+Reload the tile page. If the UI is now too small or too large, edit the two
+numbers in the injected `<style>` on the Pi and reload — no TV changes needed.
+
+### If the existing Sidee tile still shows error 102
+
+Sidee sometimes reports a URL change as successful without the TV actually
+committing it. Since the TV browser can open the page, the tile is probably
+still pointing at the old `:8443` address. The optional `moonlight-tile-proxy`
+service fixes that **without touching the TV**: it is a pure TCP passthrough
+from Pi port 8443 to 127.0.0.1:443:
+
+```
+docker compose up -d moonlight-tile-proxy
+docker logs --tail 10 moonlight-tile-proxy
+curl -skI https://127.0.0.1:8443/ | head -5
+```
+
+Whether the tile uses `:8443` or no port, it now reaches the same server. The
+proxy can be removed later with `docker compose rm -sf moonlight-tile-proxy`
+once the tile has genuinely been re-pointed.
+
 All persistent files live under `/mnt/ssd1/moonlight-web/`:
 `letsencrypt/`, `certs/`, `data/`, `certbot-hooks/`, `cloudflare.ini`,
 `certbot.env`. The `/etc/...` paths appear only **inside containers** as mount

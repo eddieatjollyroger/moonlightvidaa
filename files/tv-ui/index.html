@@ -1,0 +1,48 @@
+<!doctype html><html lang=en class=notranslate><head><meta charset=UTF-8><meta name=google content=notranslate><title>Moonlight</title><link rel=icon href=resources/moonlight.svg sizes=any type=image/svg+xml><script src=./config.js></script><meta name=mobile-web-app-capable content=yes><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no"><meta name=description content="Moonlight Web for game streaming with your pc"><link rel=manifest href=manifest.json crossorigin=use-credentials><meta name=apple-mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-title content="Moonlight Web"><meta name=apple-mobile-web-app-status-bar-style content=black-translucent><script>try{const e=localStorage.getItem("mlSettings"),t=e?JSON.parse(e):null,n=!t||"zh-CN"!==t.language&&"zh"!==t.language&&"zh_CN"!==t.language?"en":"zh-CN";document.documentElement.lang=n,document.documentElement.translate=!1,document.documentElement.classList.add("notranslate")}catch(e){}</script><link rel=icon href=moonlight.svg><style id="tv-fix">
+html{font-size:12px!important;-webkit-text-size-adjust:100%!important}
+body{zoom:0.75!important}
+.tv-focus{outline:3px solid #ffcc00!important;outline-offset:3px!important;border-radius:6px!important;background:rgba(255,204,0,.10)!important}
+</style>
+<script id="tv-nav">
+(function(){
+  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display';
+  function items(){return Array.prototype.slice.call(document.querySelectorAll(SEL)).filter(function(e){
+    var r=e.getBoundingClientRect(),s=getComputedStyle(e);
+    return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';
+  });}
+  var idx=-1;
+  function mark(){
+    var a=items(); if(idx>=a.length)idx=a.length-1;
+    a.forEach(function(e,i){if(e.tabIndex<0)e.tabIndex=0;e.classList.toggle('tv-focus',i===idx);});
+    if(idx>=0&&a[idx]){try{a[idx].focus({preventScroll:true});}catch(err){a[idx].focus();}}
+  }
+  function move(dx,dy){
+    var a=items(); if(!a.length)return;
+    var cur=a[idx]; if(!cur){idx=0;mark();return;}
+    var r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    var best=-1,score=1e18;
+    a.forEach(function(e,i){
+      if(i===idx)return;
+      var q=e.getBoundingClientRect(),x=q.left+q.width/2,y=q.top+q.height/2;
+      var fwd=(x-cx)*dx+(y-cy)*dy; if(fwd<=0)return;
+      var side=Math.abs((x-cx)*dy-(y-cy)*dx),s=fwd+side*3;
+      if(s<score){score=s;best=i;}
+    });
+    if(best>=0){idx=best;mark();}
+  }
+  document.addEventListener('keydown',function(e){
+    var k=e.key||e.code;
+    if(k==='ArrowRight'||k==='Right'){e.preventDefault();move(1,0);}
+    else if(k==='ArrowLeft'||k==='Left'){e.preventDefault();move(-1,0);}
+    else if(k==='ArrowDown'||k==='Down'){e.preventDefault();move(0,1);}
+    else if(k==='ArrowUp'||k==='Up'){e.preventDefault();move(0,-1);}
+    else if(k==='Enter'||k==='OK'||k==='Accept'||e.keyCode===13){
+      var a=items(),t=a[idx]; if(t){e.preventDefault();t.click();}
+    }
+    setTimeout(mark,0);
+  },true);
+  document.addEventListener('DOMNodeInserted',function(){setTimeout(mark,60);});
+  setInterval(mark,1500);
+})();
+</script>
+</head><body><div id=modal-overlay class="modal-background modal-disabled"><div id=modal-parent class=modal-content></div></div><div id=context-menu class="context-menu-background context-menu-disabled"></div><div id=notification-list></div><div id=root class=root></div><script src=index.js></script></body></html>

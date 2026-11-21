@@ -24,10 +24,24 @@ services:
       - /mnt/ssd1/moonlight-web/static/stream.js:/moonlight-web/static/stream.js:ro
       - /mnt/ssd1/moonlight-web/static/478.js:/moonlight-web/static/478.js:ro
       - /mnt/ssd1/moonlight-web/static/stream.html:/moonlight-web/static/stream.html:ro
+      # TV-sized UI + arrow-key/OK navigation (injected into index.html)
+      - /mnt/ssd1/moonlight-web/static/index.html:/moonlight-web/static/index.html:ro
     deploy:
       resources:
         limits:
           cpus: '1.0'                   # relay only, no transcode; raise if needed
+    restart: unless-stopped
+
+  # Optional: lets an old Sidee tile that still points at :8443 keep working.
+  # Pure TCP passthrough, no TLS termination and no TV changes. Remove this
+  # service once the tile has been re-pointed to https://moonlight.YOURDOMAIN.com/
+  moonlight-tile-proxy:
+    container_name: moonlight-tile-proxy
+    image: "alpine/socat:latest"
+    pull_policy: missing
+    network_mode: host
+    entrypoint: ["socat"]
+    command: ["TCP-LISTEN:8443,fork,reuseaddr", "TCP:127.0.0.1:443"]
     restart: unless-stopped
 
   certbot:
