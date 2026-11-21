@@ -78,6 +78,9 @@ body{zoom:0.75!important}
     return !/^(range|checkbox|radio|button|submit|reset|file|color|image)$/.test(ty);
   }
   function items(){return Array.prototype.slice.call(document.querySelectorAll(SEL)).filter(function(e){
+    // Bitrate has a range slider right after its number field. Skip sliders so
+    // OK lands on the number field itself (otherwise digits go nowhere).
+    if((e.tagName||'').toLowerCase()==='input'&&(e.type||'').toLowerCase()==='range')return false;
     var r=e.getBoundingClientRect(),s=getComputedStyle(e);
     return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';
   });}
@@ -88,25 +91,14 @@ body{zoom:0.75!important}
     try{e.focus({preventScroll:true});}catch(err){try{e.focus();}catch(err2){}}
     if(!editable(e)||e.dataset.tvEdit)return;
     e.dataset.tvEdit='1';
-    if((e.type||'').toLowerCase()==='number'){
-      // Never blank the field: the app saves parseInt('') as NaN -> null in
-      // localStorage and its settings screen crashes on the next load.
-      // VIDAA ignores select(), so replace the old value on the first digit.
-      var h=function(k){
-        if(!e.dataset.tvTyped&&/^[0-9]$/.test(k.key||'')){
-          k.preventDefault();e.dataset.tvTyped='1';e.value=k.key;
-        }
-      };
-      e.addEventListener('keydown',h);
-      e.addEventListener('blur',function b(){
-        delete e.dataset.tvEdit;delete e.dataset.tvTyped;
-        e.removeEventListener('keydown',h);
-        e.removeEventListener('blur',b);
-      });
-    }else{
+    if((e.type||'').toLowerCase()!=='number'){
       try{e.select();}catch(err){try{e.setSelectionRange(e.value.length,e.value.length);}catch(err2){}}
     }
   }
+  // Reset the "replace on first digit" flag whenever focus leaves a field.
+  document.addEventListener('blur',function(e){
+    if(e.target&&e.target.dataset){delete e.target.dataset.tvEdit;delete e.target.dataset.tvTyped;}
+  },true);
   function mark(doFocus){
     var a=items(); if(idx>=a.length)idx=a.length-1;
     a.forEach(function(e,i){if(e.tabIndex<0)e.tabIndex=0;e.classList.toggle('tv-focus',i===idx);});
@@ -122,6 +114,12 @@ body{zoom:0.75!important}
   }
   document.addEventListener('keydown',function(e){
     var k=e.key||e.code, ae=document.activeElement, ed=editable(ae);
+    // VIDAA ignores select() on number inputs, so typed digits append to the
+    // old value. Replace it on the first digit instead of blanking the field
+    // (blanking made the app save NaN -> null and crash on next load).
+    if(ed&&(ae.type||'').toLowerCase()==='number'&&/^[0-9]$/.test(k||'')){
+      if(!ae.dataset.tvTyped){e.preventDefault();ae.dataset.tvTyped='1';ae.value=k;return;}
+    }
     // Arrows always navigate, even out of a text field, so the remote can
     // never get trapped in settings. Only printable keys stay in the field.
     if(k==='ArrowRight'||k==='Right'){e.preventDefault();if(ed)ae.blur();move(1,0);return;}

@@ -306,3 +306,12 @@ is provided at `files/static-patch/reset.html`: copy it to the static dir and
 open `https://moonlight.joaopacheco.me/reset.html` on the TV. It removes
 `mlSettings` and redirects to a cache-busted home URL. You will need to
 re-enable "Use Canvas Renderer" and 720p afterwards.
+
+### Number-field editing fix (shim)
+
+- Range sliders (`input[type=range]`) are skipped by remote navigation, so OK
+  lands on the bitrate number field instead of its slider (digits previously
+  went nowhere).
+- First-digit replacement moved from a per-field listener to the global
+  keydown handler, with `tvTyped` cleared on blur. Neither field is ever
+  blanked, so the app cannot save NaN/null again.
