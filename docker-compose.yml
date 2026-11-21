@@ -44,6 +44,23 @@ services:
     command: ["TCP-LISTEN:8443,fork,reuseaddr", "TCP:127.0.0.1:443"]
     restart: unless-stopped
 
+  # HTTPS terminator so the stream page (HTTPS) can POST WebRTC stats to
+  # TubeTV's /api/log (HTTP) without mixed-content blocking. Domain cert,
+  # LAN-only, no TV/system changes. View results at http://192.168.1.69:8484/logs
+  ml-metrics-proxy:
+    container_name: ml-metrics-proxy
+    image: "alpine/socat:latest"
+    pull_policy: missing
+    network_mode: host
+    entrypoint: ["socat"]
+    command:
+      - "OPENSSL-LISTEN:8444,fork,reuseaddr,cert=/certs/cert.pem,key=/certs/key.pem"
+      - "TCP:192.168.1.69:8484"
+    volumes:
+      - /mnt/ssd1/moonlight-web/certs/cert.pem:/certs/cert.pem:ro
+      - /mnt/ssd1/moonlight-web/certs/key.pem:/certs/key.pem:ro
+    restart: unless-stopped
+
   certbot:
     container_name: certbot
     image: "certbot/dns-cloudflare:latest"

@@ -43,7 +43,7 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=12`);
+- both `stream.js` and `478.js` are cache-busted (`?tv=13`);
 - `stream.html` gives the CSS vars that position/resize the video sane defaults
   and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
   the on-screen-keyboard event that normally seeds those vars never fires, so
@@ -70,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=12`, which in turn loads `478.js?tv=12`, so the
+`stream.html` loads `stream.js?tv=13`, which in turn loads `478.js?tv=13`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
@@ -212,51 +212,34 @@ docker exec moonlight-web ./web-server config print
 - Container runs as UID 999: data dir writable, certs/JS readable.
 - No dock, guard, DNS, Pi service, or TV setting was changed by preparing this.
 
-## TV diagnostics (temporary)
-
-The stream page shows a green `FIX ... V ... W ...` line for ~20 seconds:
-
-- `FIX` is 1 when the forced full-screen sizing boot code ran;
-- `V` is the measured size of the `.video-stream` element, re-read every 500 ms
-  (VIDAA creates it several seconds after the page loads, which is why the old
-  one-shot reading always showed `0x0`);
-- `W` is the browser viewport.
-
-Both the menu page and the stream page now treat the remote Back key
+Both the menu page and the stream page treat the remote Back key
 (`Backspace`, `Escape`, `GoBack`, `BrowserBack`, key codes 8/27/461) as
-`history.back()`, so you do not have to hunt for the on-screen Back button.
-The line and this note will be removed once the reported `V` value confirms
-the sizing fix.
+`history.back()`, so there is no need to hunt for the on-screen Back button.
+The Sidee tile must be registered with `add_tile` (a real HTTP_APP entry
+showing `HTTP_APP_DEFAULT_URL<id>`), not as a raw-URL shortcut — otherwise the
+TV opens it in a fixed 1280x720 browser window.
 
-### Latest changes (tv=12)
+## Clean stream + smoothness metrics (tv=13)
 
-- `index.html` forces `useSelectElementPolyfill` in `mlSettings` so dropdowns
-  become clickable `<p>` rows instead of native `<select>` elements, and
-  overrides `window.open('/stream.html...')` to navigate in the tile window.
-- Settings navigation is now strictly linear in DOM order (all arrow keys).
-- `stream.js` tries `requestFullscreen()` on load and again on OK, and the
-  diagnostic also reports `S` (screen size) and `D` (device pixel ratio) to
-  distinguish a small popup window from a scaling problem.
+The green diagnostic and the `OK = FILL SCREEN` button are gone. The stream now
+collects WebRTC receive stats silently and posts them to TubeTV's `/api/log`
+through a new LAN-only HTTPS proxy (`ml-metrics-proxy`, port 8444), so there is
+no mixed-content blocking and no on-screen text.
 
-### tv=12 diagnostics
+After syncing/applying, recreate both services from your compose directory:
 
-Green line fields: `V` video size, `W` viewport, `O` popup (`window.opener`),
-`F` fullscreen active, `OW` outer window size, `S` screen size, `D` DPR.
-`W < S` means the browser window is smaller than the TV screen; the stream
-tries `resizeTo`/`moveTo` and all fullscreen APIs on load and on any key/tap.
+```
+docker compose up -d --force-recreate moonlight-web ml-metrics-proxy
+```
 
-### tv=12
+Run a stream for ~20 seconds, then open `http://192.168.1.69:8484/logs` and look
+for `MLSTATS` lines. Fields:
 
-`viewport` meta now requests an explicit `1920x1080` layout (matching the
-reported screen) instead of `device-width`, in both `index.html` and
-`stream.html`, with a JS fallback that rewrites it to `screen.width/height`.
-This targets the case where the browser reports a 1280x720 layout viewport on
-a 1920x1080 screen.
+- `dec` decoded frames, `realFps` measured decoded fps (the real smoothness number)
+- `drop` frames dropped by WebRTC, `vdrop` frames dropped by the video element
+- `lost` packets lost, `jit` jitter in ms, `rtt` round-trip time in ms
+- `wh` received resolution, `fps` source fps, `codec` video codec
 
-### tv=12
-
-Adds a focused green `OK = FILL SCREEN` button on the stream page. Pressing OK
-is a genuine user gesture, so it can call `requestFullscreen()` and
-`window.open(..., '_self', 'fullscreen=yes')` when automatic attempts are
-blocked. If `F` stays 0 after pressing OK, the browser window size is enforced
-outside the web page (tile/browser launch mode).
+If `realFps` is well below ~50 while `lost`/`rtt` are low, the TV browser is
+struggling to decode; lowering Sunshine's FPS/bitrate or forcing H.264 usually
+helps. If `lost` or `rtt` are high, it is network/Wi-Fi.
