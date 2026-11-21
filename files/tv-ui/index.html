@@ -2,10 +2,16 @@
 html{font-size:12px!important;-webkit-text-size-adjust:100%!important}
 body{zoom:0.75!important}
 .tv-focus{outline:3px solid #ffcc00!important;outline-offset:3px!important;border-radius:6px!important;background:rgba(255,204,0,.10)!important}
+/* VIDAA remote has no mouse coords, so the app opens the context menu at 0,0.
+   Force it into the middle of the screen with big TV-sized targets. */
+#context-menu.context-menu-background{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:9000!important;padding:12px!important}
+#context-menu .context-menu-list{margin:0!important;padding:0!important}
+#context-menu .context-menu-element{font-size:20px!important;line-height:1.3!important;padding:14px 24px!important;min-width:240px!important;margin:6px 0!important;white-space:nowrap!important}
 </style>
 <script id="tv-nav">
 (function(){
-  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display';
+  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display, .context-menu-element';
+  var menu=document.getElementById('context-menu');
   function items(){return Array.prototype.slice.call(document.querySelectorAll(SEL)).filter(function(e){
     var r=e.getBoundingClientRect(),s=getComputedStyle(e);
     return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';
@@ -41,6 +47,15 @@ body{zoom:0.75!important}
     }
     setTimeout(mark,0);
   },true);
+  // When the context menu opens, jump focus straight to its first button.
+  if(menu&&window.MutationObserver){
+    new MutationObserver(function(){
+      if(!menu.classList.contains('context-menu-disabled')){
+        var first=menu.querySelector('.context-menu-element');
+        if(first){var a=items(),i=a.indexOf(first);if(i>=0){idx=i;mark();}}
+      }
+    }).observe(menu,{attributes:true,childList:true,subtree:true,attributeFilter:['class']});
+  }
   document.addEventListener('DOMNodeInserted',function(){setTimeout(mark,60);});
   setInterval(mark,1500);
 })();

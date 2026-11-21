@@ -125,8 +125,12 @@ The stock `index.html` uses `rem` sizes and has no keyboard navigation, so on
 VIDAA everything looks oversized and the remote cannot select tiles.
 `files/tv-ui/index.html` injects a scale fix (`html` font-size 12px, `body`
 zoom 0.75) plus a navigation shim: arrow keys move a yellow focus ring between
-tiles/buttons and OK (Enter) activates the focused item. It is mounted over
-the image's `index.html`.
+tiles/buttons and OK (Enter) activates the focused item. It also forces the
+context menu ("Resume Session" / "Stop Current Session") into the middle of the
+screen with big targets — on VIDAA the remote has no mouse coordinates so the
+app otherwise opens it at 0,0 in the unreachable top-left corner. When that menu
+opens, focus jumps to its first item automatically. It is mounted over the
+image's `index.html`.
 
 ```
 sudo cp /home/eddie/moonlight-web-test/files/tv-ui/index.html /mnt/ssd1/moonlight-web/static/index.html
