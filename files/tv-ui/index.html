@@ -15,10 +15,36 @@ body{zoom:0.75!important}
   // saved settings (fps, bitrate, ...).
   try{
     var _st=JSON.parse(localStorage.getItem('mlSettings')||'{}');
-    if(_st.useSelectElementPolyfill!==true){
-      _st.useSelectElementPolyfill=true;
-      localStorage.setItem('mlSettings',JSON.stringify(_st));
+    var _changed=false;
+    // The app saves parseInt('') as NaN, which becomes null in JSON. A null
+    // videoSizeCustom.width/.height makes index.js crash on load with
+    // "Cannot read properties of null (reading 'toString')". Repair before
+    // index.js runs. Removing the key lets the app's own default win.
+    function _clean(o){
+      if(!o||typeof o!=='object')return;
+      Object.keys(o).forEach(function(k){
+        var v=o[k];
+        if(v===null||typeof v==='number'&&!isFinite(v)){delete o[k];_changed=true;}
+        else if(v&&typeof v==='object')_clean(v);
+      });
     }
+    _clean(_st);
+    if(!_st.videoSizeCustom||typeof _st.videoSizeCustom!=='object'){
+      _st.videoSizeCustom={width:1920,height:1080};_changed=true;
+    }else{
+      if(!_st.videoSizeCustom.width){_st.videoSizeCustom.width=1920;_changed=true;}
+      if(!_st.videoSizeCustom.height){_st.videoSizeCustom.height=1080;_changed=true;}
+    }
+    if(_st.useSelectElementPolyfill!==true){
+      _st.useSelectElementPolyfill=true;_changed=true;
+    }
+    // VIDAA's <video> element paints only ~3 fps even at 60 fps rAF. The
+    // canvas/WebCodecs renderer avoids that path. Set once; if the user turns
+    // it off in settings, leave it off.
+    if(!('canvasRenderer' in _st)){
+      _st.canvasRenderer=true;_changed=true;
+    }
+    if(_changed)localStorage.setItem('mlSettings',JSON.stringify(_st));
   }catch(e){}
   // Belt and braces: even if the standalone check is bypassed, never let the
   // stream open in a small popup. Navigate the current tile window instead.
@@ -63,14 +89,19 @@ body{zoom:0.75!important}
     if(!editable(e)||e.dataset.tvEdit)return;
     e.dataset.tvEdit='1';
     if((e.type||'').toLowerCase()==='number'){
-      // VIDAA Chrome ignores select() on number inputs: typed digits end up
-      // appended to the old value. Clear it while editing, restore if untouched.
-      e.dataset.tvOld=e.value;
-      e.value='';
-      e.addEventListener('blur',function h(){
-        if(e.value===''&&e.dataset.tvOld)e.value=e.dataset.tvOld;
-        delete e.dataset.tvEdit;delete e.dataset.tvOld;
-        e.removeEventListener('blur',h);
+      // Never blank the field: the app saves parseInt('') as NaN -> null in
+      // localStorage and its settings screen crashes on the next load.
+      // VIDAA ignores select(), so replace the old value on the first digit.
+      var h=function(k){
+        if(!e.dataset.tvTyped&&/^[0-9]$/.test(k.key||'')){
+          k.preventDefault();e.dataset.tvTyped='1';e.value=k.key;
+        }
+      };
+      e.addEventListener('keydown',h);
+      e.addEventListener('blur',function b(){
+        delete e.dataset.tvEdit;delete e.dataset.tvTyped;
+        e.removeEventListener('keydown',h);
+        e.removeEventListener('blur',b);
       });
     }else{
       try{e.select();}catch(err){try{e.setSelectionRange(e.value.length,e.value.length);}catch(err2){}}

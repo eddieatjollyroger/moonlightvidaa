@@ -43,7 +43,7 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=17`);
+- both `stream.js` and `478.js` are cache-busted (`?tv=18`);
 - `stream.html` gives the CSS vars that position/resize the video sane defaults
   and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
   the on-screen-keyboard event that normally seeds those vars never fires, so
@@ -70,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=17`, which in turn loads `478.js?tv=17`, so the
+`stream.html` loads `stream.js?tv=18`, which in turn loads `478.js?tv=18`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
@@ -219,7 +219,7 @@ The Sidee tile must be registered with `add_tile` (a real HTTP_APP entry
 showing `HTTP_APP_DEFAULT_URL<id>`), not as a raw-URL shortcut — otherwise the
 TV opens it in a fixed 1280x720 browser window.
 
-## Clean stream + smoothness metrics (tv=17)
+## Clean stream + smoothness metrics (tv=18)
 
 The green diagnostic and the `OK = FILL SCREEN` button are gone. The stream now
 collects WebRTC receive stats silently and posts them to TubeTV's `/api/log`
@@ -256,7 +256,7 @@ The first command should return `{"ok":true}` and the second should show the
 `MLSTATS test` line. The stream page also now calls the native `fetch` captured
 before the app can wrap it, so failed requests no longer raise UI toasts.
 
-### tv=17 metrics
+### tv=18 metrics
 
 Adds `vFps` (video-element presented fps from `totalVideoFrames`),
 `pres`/`presFps` (frames counted via `requestVideoFrameCallback`), `recv` and
@@ -264,7 +264,7 @@ Adds `vFps` (video-element presented fps from `totalVideoFrames`),
 are the reliable smoothness numbers on VIDAA Chrome 111, where `framesDecoded`
 can freeze.
 
-### tv=17
+### tv=18
 
 Adds `vis` / `hid` / `focus` (Page Visibility and focus state), `paused`,
 `ready` and `ct` (video `readyState` / `currentTime`), plus a silent
@@ -272,9 +272,37 @@ Adds `vis` / `hid` / `focus` (Page Visibility and focus state), `paused`,
 distinguishes browser background throttling from a decode/paint problem when
 `recv` is high but `vFps` is low.
 
-### tv=17
+### tv=18
 
 Adds `raf` / `rafFps` (requestAnimationFrame rate) and `tags` (whether the
 rendered `.video-stream` is a VIDEO or CANVAS). If `rafFps` is ~60 while `vFps`
 is ~3, the browser is fine and the video decode/paint path is the bottleneck;
 if both are ~3, the browser is throttling animation globally.
+
+### tv=18
+
+The TV shim now sets `canvasRenderer: true` once in `mlSettings` (only when the
+key is absent). VIDAA's `<video>` element painted ~3 fps despite 60 fps rAF and
+33 fps arriving; the canvas/WebCodecs renderer avoids that path. If it causes
+problems, turn off "Use Canvas Renderer" in Moonlight settings — the shim will
+not force it back on.
+
+## Recovery: "Cannot read properties of null (reading 'toString')" (tv=18 shim fix)
+
+The old TV shim cleared number inputs on focus so VIDAA's remote could replace
+values. The app then saved `parseInt('')` as `NaN`, which becomes `null` in
+localStorage; on the next load `index.js` calls `.toString()` on the null
+`videoSizeCustom.width` and the whole page dies.
+
+The fixed `files/tv-ui/index.html` now:
+
+- repairs null/NaN values in `mlSettings` **before** `index.js` runs;
+- never blanks a number field — it replaces the old value on the first digit
+  typed instead.
+
+The site sends `cache-control: no-store`, so just re-opening the tile fetches
+the fixed page and the repair runs automatically. As a fallback, a reset page
+is provided at `files/static-patch/reset.html`: copy it to the static dir and
+open `https://moonlight.joaopacheco.me/reset.html` on the TV. It removes
+`mlSettings` and redirects to a cache-busted home URL. You will need to
+re-enable "Use Canvas Renderer" and 720p afterwards.
