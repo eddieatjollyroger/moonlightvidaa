@@ -1,5 +1,6 @@
-# Paste this service into your existing compose file, or use this file standalone.
-# network_mode: host is deliberate: WebRTC UDP binds straight to the Pi, no DNAT.
+# Paste these services into your existing compose file, or use this file standalone.
+# network_mode: host is deliberate for moonlight-web: WebRTC UDP binds straight
+# to the Pi, no DNAT. certbot only needs outbound HTTPS, so it uses bridge.
 services:
   moonlight-web:
     container_name: moonlight-web
@@ -16,8 +17,28 @@ services:
     volumes:
       - /mnt/ssd1/moonlight-web/certs:/moonlight-web/certs:ro
       - /mnt/ssd1/moonlight-web/data:/moonlight-web/server   # users + pairing state
+      # TV-safe WebCodecs probe (VIDAA Chrome 111 throws on AV1 codec strings)
+      - /mnt/ssd1/moonlight-web/static/stream.js:/moonlight-web/static/stream.js:ro
+      - /mnt/ssd1/moonlight-web/static/478.js:/moonlight-web/static/478.js:ro
     deploy:
       resources:
         limits:
           cpus: '1.0'                   # relay only, no transcode; raise if needed
+    restart: unless-stopped
+
+  certbot:
+    container_name: certbot
+    image: "certbot/dns-cloudflare:latest"
+    pull_policy: missing                # official image, arm64 available
+    environment:
+      - TZ=Atlantic/Azores
+      - CERTBOT_DOMAIN=${MOONLIGHT_DOMAIN}
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+    volumes:
+      - /mnt/ssd1/moonlight-web/letsencrypt:/etc/letsencrypt
+      - /mnt/ssd1/moonlight-web/cloudflare.ini:/etc/cloudflare.ini:ro
+      - /mnt/ssd1/moonlight-web/certbot-hooks:/hooks:ro
+      - /mnt/ssd1/moonlight-web/certs:/certs
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "/hooks/run-certbot.sh"]
     restart: unless-stopped
