@@ -5,7 +5,7 @@ is reversible; no TV system files are touched.
 
 ## What is in here
 
-- `docker-compose.yml` - host-network service block, HTTPS on **8443**, WebRTC UDP 40000-40100
+- `docker-compose.yml` - host-network service block, HTTPS on **443**, WebRTC UDP 40000-40100
 - `files/cert.pem`, `files/key.pem` - self-signed cert for `192.168.1.69` (step 3)
 - `files/capability/index.html` - TV browser capability test (port **8444**)
 - `files/serve-capability.py` - tiny HTTPS server for that page
@@ -13,7 +13,9 @@ is reversible; no TV system files are touched.
 - `files/moonlight-web-aarch64.tar.gz` - offline ARM64 binary, fallback only
 - `files/setup.sh`, `files/run.sh` - bare-metal fallback scripts
 
-Ports 8443/8444 do not conflict with TubeTV (8484) or Home Assistant (8123).
+Port 443 must be free on the Pi. Port 8444 (capability test) does not conflict
+with TubeTV (8484) or Home Assistant (8123). The container runs as root only so
+it can bind port 443; everything else stays under `/mnt/ssd1/moonlight-web/`.
 
 ## Step 1 - copy to the Pi (Mac)
 
@@ -38,6 +40,11 @@ The VIDAA Chrome 111 browser throws on AV1 codec strings in
 start. The patched bundles turn those throws into `supported:false`, so H.264
 still works. They are bind-mounted over the image's own files.
 
+They also fix two TV-specific hangs:
+- the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
+  can no longer leave the popup stuck on "Selecting pipeline automatically";
+- both `stream.js` and `478.js` are cache-busted (`?tv=4`).
+
 ```
 sudo mkdir -p /mnt/ssd1/moonlight-web/static
 sudo cp /home/eddie/moonlight-web-test/files/static-patch/{stream.js,478.js,stream.html} /mnt/ssd1/moonlight-web/static/
@@ -56,11 +63,11 @@ docker compose up -d --force-recreate moonlight-web
 docker logs --tail 40 moonlight-web
 ```
 
-TV -> `https://192.168.1.69:8443/`. Log in (first username/password you type
+TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=3` so the TV cannot silently reuse a cached
-copy of the old bundle.
+`stream.html` loads `stream.js?tv=4`, which in turn loads `478.js?tv=4`, so the
+TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
 
@@ -110,7 +117,7 @@ docker compose up -d --force-recreate moonlight-web certbot
 docker logs --tail 40 certbot
 docker logs --tail 20 moonlight-web
 ```
-6. Sidee tile URL: `https://moonlight.YOURDOMAIN.com:8443/`
+6. Sidee tile URL: `https://moonlight.YOURDOMAIN.com/` (no port, trailing slash)
 
 All persistent files live under `/mnt/ssd1/moonlight-web/`:
 `letsencrypt/`, `certs/`, `data/`, `certbot-hooks/`, `cloudflare.ini`,

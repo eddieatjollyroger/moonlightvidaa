@@ -6,10 +6,13 @@ services:
     container_name: moonlight-web
     image: "mrcreativ3001/moonlight-web-stream:latest"
     pull_policy: missing                # published multi-arch image, arm64 verified
-    network_mode: host                  # no ports: mapping - binds 8443 + UDP 40000-40100 directly
+    network_mode: host                  # no ports: mapping - binds 443 + UDP 40000-40100 directly
+    user: "0:0"                         # needed to bind privileged port 443 (image default user is 'moonlight')
     environment:
       - TZ=Atlantic/Azores
-      - BIND_ADDRESS=0.0.0.0:8443       # host port, because network_mode: host
+      - RUST_LOG=info,h2=warn,hyper=warn,tower=warn,web_server=debug,moonlight=debug   # silence h2, keep stream detail
+      - LOG_LEVEL_FILTER=info
+      - BIND_ADDRESS=0.0.0.0:443        # default HTTPS port, so Sidee tiles do not need :8443
       - SSL_CERTIFICATE=/moonlight-web/certs/cert.pem
       - SSL_PRIVATE_KEY=/moonlight-web/certs/key.pem
       - WEBRTC_PORT_RANGE=40000:40100
