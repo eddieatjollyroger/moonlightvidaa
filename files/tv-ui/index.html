@@ -23,6 +23,7 @@ body{zoom:0.75!important}
   // Belt and braces: even if the standalone check is bypassed, never let the
   // stream open in a small popup. Navigate the current tile window instead.
   var _open=window.open;
+  window.__mlOpenOverride=1;
   window.open=function(u){
     try{
       if(typeof u==='string'&&u.indexOf('/stream.html')>=0){
