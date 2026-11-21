@@ -10,7 +10,7 @@ body{zoom:0.75!important}
 </style>
 <script id="tv-nav">
 (function(){
-  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, .select-polyfill-display, .select-polyfill-list p, .context-menu-element';
+  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display, .select-polyfill-list p, .context-menu-element';
   var menu=document.getElementById('context-menu');
   // Sidee tiles are not "standalone", so the app opens the stream in a new
   // popup window. Force same-window navigation so the video uses the full
@@ -63,14 +63,21 @@ body{zoom:0.75!important}
     var a=items(); if(!a.length)return;
     var cur=a[idx]; if(!cur){idx=0;mark();return;}
     var r=cur.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-    var best=-1,score=1e18;
+    var best=-1,score=1e18,near=-1,nscore=1e18;
     a.forEach(function(e,i){
       if(i===idx)return;
       var q=e.getBoundingClientRect(),x=q.left+q.width/2,y=q.top+q.height/2;
-      var fwd=(x-cx)*dx+(y-cy)*dy; if(fwd<=0)return;
-      var side=Math.abs((x-cx)*dy-(y-cy)*dx),s=fwd+side*3;
+      var ddx=x-cx,ddy=y-cy;
+      var dist=Math.sqrt(ddx*ddx+ddy*ddy);
+      if(dist<nscore){nscore=dist;near=i;}
+      var fwd=ddx*dx+ddy*dy; if(fwd<=0)return;
+      var side=Math.abs(ddx*dy-ddy*dx),s=fwd+side*3;
       if(s<score){score=s;best=i;}
     });
+    // Settings wrap across columns, so a purely directional search can find
+    // nothing. Fall back to nearest item, then to plain DOM order.
+    if(best<0)best=near;
+    if(best<0)best=(idx+(dx>0||dy>0?1:-1)+a.length)%a.length;
     if(best>=0){idx=best;mark();}
   }
   document.addEventListener('keydown',function(e){
@@ -96,7 +103,15 @@ body{zoom:0.75!important}
       }
       return;
     }
-    if(k==='Escape'||k==='Esc'){if(ed){e.preventDefault();ae.blur();mark();}return;}
+    if(k==='Backspace'||k==='BrowserBack'||k==='GoBack'||e.keyCode===461){
+      if(!ed){e.preventDefault();history.back();}
+      return;
+    }
+    if(k==='Escape'||k==='Esc'){
+      if(ed){e.preventDefault();ae.blur();mark();}
+      else{e.preventDefault();history.back();}
+      return;
+    }
     setTimeout(function(){if(!editable(document.activeElement))mark(false);},0);
   },true);
   // When the context menu opens, jump focus straight to its first button.

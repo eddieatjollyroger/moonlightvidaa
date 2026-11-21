@@ -43,7 +43,7 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=7`);
+- both `stream.js` and `478.js` are cache-busted (`?tv=8`);
 - `stream.html` gives the CSS vars that position/resize the video sane defaults
   and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
   the on-screen-keyboard event that normally seeds those vars never fires, so
@@ -70,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=7`, which in turn loads `478.js?tv=7`, so the
+`stream.html` loads `stream.js?tv=8`, which in turn loads `478.js?tv=8`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
@@ -211,3 +211,19 @@ docker exec moonlight-web ./web-server config print
   `WEBRTC_NAT_1TO1_HOST` were verified as real env overrides in the binary.
 - Container runs as UID 999: data dir writable, certs/JS readable.
 - No dock, guard, DNS, Pi service, or TV setting was changed by preparing this.
+
+## TV diagnostics (temporary)
+
+The stream page shows a green `FIX ... V ... W ...` line for ~20 seconds:
+
+- `FIX` is 1 when the forced full-screen sizing boot code ran;
+- `V` is the measured size of the `.video-stream` element, re-read every 500 ms
+  (VIDAA creates it several seconds after the page loads, which is why the old
+  one-shot reading always showed `0x0`);
+- `W` is the browser viewport.
+
+Both the menu page and the stream page now treat the remote Back key
+(`Backspace`, `Escape`, `GoBack`, `BrowserBack`, key codes 8/27/461) as
+`history.back()`, so you do not have to hunt for the on-screen Back button.
+The line and this note will be removed once the reported `V` value confirms
+the sizing fix.
