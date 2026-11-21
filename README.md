@@ -43,7 +43,11 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=4`).
+- both `stream.js` and `478.js` are cache-busted (`?tv=5`);
+- `stream.html` gives the CSS vars that position/resize the video sane defaults
+  and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
+  the on-screen-keyboard event that normally seeds those vars never fires, so
+  without this the video sits at native size in the top-left corner.
 
 ```
 sudo mkdir -p /mnt/ssd1/moonlight-web/static
@@ -66,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=4`, which in turn loads `478.js?tv=4`, so the
+`stream.html` loads `stream.js?tv=5`, which in turn loads `478.js?tv=5`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
@@ -129,8 +133,9 @@ tiles/buttons and OK (Enter) activates the focused item. It also forces the
 context menu ("Resume Session" / "Stop Current Session") into the middle of the
 screen with big targets — on VIDAA the remote has no mouse coordinates so the
 app otherwise opens it at 0,0 in the unreachable top-left corner. When that menu
-opens, focus jumps to its first item automatically. It is mounted over the
-image's `index.html`.
+opens, focus jumps to its first item automatically. Text/number fields are
+select-all on focus so typing replaces the value instead of prepending digits to
+it. It is mounted over the image's `index.html`.
 
 ```
 sudo cp /home/eddie/moonlight-web-test/files/tv-ui/index.html /mnt/ssd1/moonlight-web/static/index.html

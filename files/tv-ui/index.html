@@ -12,15 +12,26 @@ body{zoom:0.75!important}
 (function(){
   var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display, .context-menu-element';
   var menu=document.getElementById('context-menu');
+  function editable(e){var t=(e&&e.tagName||'').toLowerCase();return t==='input'||t==='textarea'||t==='select'||!!(e&&e.isContentEditable);}
   function items(){return Array.prototype.slice.call(document.querySelectorAll(SEL)).filter(function(e){
     var r=e.getBoundingClientRect(),s=getComputedStyle(e);
     return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none';
   });}
   var idx=-1;
-  function mark(){
+  // Focusing a text/number input puts the caret at position 0 in VIDAA Chrome.
+  // Select the existing value instead so typing replaces it (e.g. FPS 60 -> 30).
+  function focusItem(e){
+    try{e.focus({preventScroll:true});}catch(err){try{e.focus();}catch(err2){}}
+    if(editable(e)){
+      try{e.select();}catch(err){
+        try{e.setSelectionRange(e.value.length,e.value.length);}catch(err2){e.value=e.value;}
+      }
+    }
+  }
+  function mark(doFocus){
     var a=items(); if(idx>=a.length)idx=a.length-1;
     a.forEach(function(e,i){if(e.tabIndex<0)e.tabIndex=0;e.classList.toggle('tv-focus',i===idx);});
-    if(idx>=0&&a[idx]){try{a[idx].focus({preventScroll:true});}catch(err){a[idx].focus();}}
+    if(doFocus!==false&&idx>=0&&a[idx])focusItem(a[idx]);
   }
   function move(dx,dy){
     var a=items(); if(!a.length)return;
@@ -37,15 +48,21 @@ body{zoom:0.75!important}
     if(best>=0){idx=best;mark();}
   }
   document.addEventListener('keydown',function(e){
-    var k=e.key||e.code;
+    var k=e.key||e.code, ae=document.activeElement;
+    // Never steal the caret while a field is being edited.
+    if(editable(ae)){
+      if(k==='Escape'||k==='Esc'){e.preventDefault();ae.blur();idx=-1;mark();}
+      return;
+    }
     if(k==='ArrowRight'||k==='Right'){e.preventDefault();move(1,0);}
     else if(k==='ArrowLeft'||k==='Left'){e.preventDefault();move(-1,0);}
     else if(k==='ArrowDown'||k==='Down'){e.preventDefault();move(0,1);}
     else if(k==='ArrowUp'||k==='Up'){e.preventDefault();move(0,-1);}
     else if(k==='Enter'||k==='OK'||k==='Accept'||e.keyCode===13){
-      var a=items(),t=a[idx]; if(t){e.preventDefault();t.click();}
+      var a=items(),t=a[idx];
+      if(t){e.preventDefault();if(editable(t))focusItem(t);else t.click();}
     }
-    setTimeout(mark,0);
+    setTimeout(function(){if(!editable(document.activeElement))mark(false);},0);
   },true);
   // When the context menu opens, jump focus straight to its first button.
   if(menu&&window.MutationObserver){
@@ -56,8 +73,8 @@ body{zoom:0.75!important}
       }
     }).observe(menu,{attributes:true,childList:true,subtree:true,attributeFilter:['class']});
   }
-  document.addEventListener('DOMNodeInserted',function(){setTimeout(mark,60);});
-  setInterval(mark,1500);
+  document.addEventListener('DOMNodeInserted',function(){setTimeout(function(){if(!editable(document.activeElement))mark(false);},60);});
+  setInterval(function(){if(!editable(document.activeElement))mark(false);},1500);
 })();
 </script>
 </head><body><div id=modal-overlay class="modal-background modal-disabled"><div id=modal-parent class=modal-content></div></div><div id=context-menu class="context-menu-background context-menu-disabled"></div><div id=notification-list></div><div id=root class=root></div><script src=index.js></script></body></html>
