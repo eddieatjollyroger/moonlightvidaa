@@ -64,20 +64,20 @@ body{zoom:0.75!important}
     if(best>=0){idx=best;mark();}
   }
   document.addEventListener('keydown',function(e){
-    var k=e.key||e.code, ae=document.activeElement;
-    // Never steal the caret while a field is being edited.
-    if(editable(ae)){
-      if(k==='Escape'||k==='Esc'){e.preventDefault();ae.blur();idx=-1;mark();}
-      return;
-    }
-    if(k==='ArrowRight'||k==='Right'){e.preventDefault();move(1,0);}
-    else if(k==='ArrowLeft'||k==='Left'){e.preventDefault();move(-1,0);}
-    else if(k==='ArrowDown'||k==='Down'){e.preventDefault();move(0,1);}
-    else if(k==='ArrowUp'||k==='Up'){e.preventDefault();move(0,-1);}
-    else if(k==='Enter'||k==='OK'||k==='Accept'||e.keyCode===13){
+    var k=e.key||e.code, ae=document.activeElement, ed=editable(ae);
+    // Arrows always navigate, even out of a text field, so the remote can
+    // never get trapped in settings. Only printable keys stay in the field.
+    if(k==='ArrowRight'||k==='Right'){e.preventDefault();if(ed)ae.blur();move(1,0);return;}
+    if(k==='ArrowLeft'||k==='Left'){e.preventDefault();if(ed)ae.blur();move(-1,0);return;}
+    if(k==='ArrowDown'||k==='Down'){e.preventDefault();if(ed)ae.blur();move(0,1);return;}
+    if(k==='ArrowUp'||k==='Up'){e.preventDefault();if(ed)ae.blur();move(0,-1);return;}
+    if(k==='Enter'||k==='OK'||k==='Accept'||e.keyCode===13){
+      if(ed){e.preventDefault();ae.blur();mark(false);return;}
       var a=items(),t=a[idx];
       if(t){e.preventDefault();if(editable(t))focusItem(t);else t.click();}
+      return;
     }
+    if(k==='Escape'||k==='Esc'){if(ed){e.preventDefault();ae.blur();mark();}return;}
     setTimeout(function(){if(!editable(document.activeElement))mark(false);},0);
   },true);
   // When the context menu opens, jump focus straight to its first button.

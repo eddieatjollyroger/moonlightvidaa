@@ -152,15 +152,21 @@ Add this volume line to `moonlight-web`:
 Reload the tile page. If the UI is now too small or too large, edit the two
 numbers in the injected `<style>` on the Pi and reload — no TV changes needed.
 
+The 4K TV / 1080p PC mismatch is **not** why the video is small: `object-fit:contain`
+scales the 1080p source to whatever viewport size the browser reports. If the
+video still looks small, `stream.js` now also applies the same sizing as inline
+`!important` styles through a `MutationObserver` (flag `window.__tvStreamFix`),
+so no stylesheet or app JS can override it.
+
 To confirm the TV is really getting these files (rather than a cached copy):
 ```
 curl -sk https://127.0.0.1/index.html | grep -o 'tv-nav'
 curl -sk https://127.0.0.1/stream.html | grep -o 'stream.js?tv=[0-9]*'
 curl -sk https://127.0.0.1/stream.js | head -c 100
 ```
-The last command should start with the `tv-stream-fix` style injection. If any
-of these fail, the matching `:ro` volume line is missing from `moonlight-web` in
-the Pi's compose file.
+The last command should start with the `tv-stream-fix` style injection and
+contain `MutationObserver`. If any of these fail, the matching `:ro` volume line
+is missing from `moonlight-web` in the Pi's compose file.
 
 ### If the existing Sidee tile still shows error 102
 
