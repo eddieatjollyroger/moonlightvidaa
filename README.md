@@ -114,6 +114,11 @@ To go back: copy `files/static-patch/stream.js` over `stream.js` on the Pi and
 open `https://moonlight.joaopacheco.me/?webrtc=1` once. Both switches only
 change browser `localStorage`; no TV or Pi system files are modified.
 
+The MSE variant also asks for an IDR after the **first** dropped frame instead
+of 60, and after 5 s it stops waiting for an IDR and appends anyway. This is
+for VIDAA ignoring the IDR request, which otherwise leaves audio only with the
+video element stuck at `readyState=1` and no buffered ranges.
+
 `ahead` staying under ~0.6 s with smooth motion would confirm the hardware
 MediaSource path is the browser-only winner. If `ahead` grows, the next step is
 an IDR-aligned live-edge seek (the repo's finding 32), not more network tuning.
