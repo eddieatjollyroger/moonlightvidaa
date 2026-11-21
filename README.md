@@ -43,7 +43,7 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=6`);
+- both `stream.js` and `478.js` are cache-busted (`?tv=7`);
 - `stream.html` gives the CSS vars that position/resize the video sane defaults
   and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
   the on-screen-keyboard event that normally seeds those vars never fires, so
@@ -70,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=6`, which in turn loads `478.js?tv=6`, so the
+`stream.html` loads `stream.js?tv=7`, which in turn loads `478.js?tv=7`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback

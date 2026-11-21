@@ -10,7 +10,7 @@ body{zoom:0.75!important}
 </style>
 <script id="tv-nav">
 (function(){
-  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, select, .select-polyfill-display, .context-menu-element';
+  var SEL='.host-element>div, .app, .host-add, .open-settings, .back-button, button, a, input, .select-polyfill-display, .select-polyfill-list p, .context-menu-element';
   var menu=document.getElementById('context-menu');
   // Sidee tiles are not "standalone", so the app opens the stream in a new
   // popup window. Force same-window navigation so the video uses the full
@@ -24,7 +24,7 @@ body{zoom:0.75!important}
   // buttons must keep normal remote navigation.
   function editable(e){
     var t=(e&&e.tagName||'').toLowerCase();
-    if(t==='textarea'||t==='select'||(e&&e.isContentEditable))return true;
+    if(t==='textarea'||(e&&e.isContentEditable))return true;
     if(t!=='input')return false;
     var ty=(e.type||'text').toLowerCase();
     return !/^(range|checkbox|radio|button|submit|reset|file|color|image)$/.test(ty);
@@ -38,10 +38,20 @@ body{zoom:0.75!important}
   // Select the existing value instead so typing replaces it (e.g. FPS 60 -> 30).
   function focusItem(e){
     try{e.focus({preventScroll:true});}catch(err){try{e.focus();}catch(err2){}}
-    if(editable(e)){
-      try{e.select();}catch(err){
-        try{e.setSelectionRange(e.value.length,e.value.length);}catch(err2){e.value=e.value;}
-      }
+    if(!editable(e)||e.dataset.tvEdit)return;
+    e.dataset.tvEdit='1';
+    if((e.type||'').toLowerCase()==='number'){
+      // VIDAA Chrome ignores select() on number inputs: typed digits end up
+      // appended to the old value. Clear it while editing, restore if untouched.
+      e.dataset.tvOld=e.value;
+      e.value='';
+      e.addEventListener('blur',function h(){
+        if(e.value===''&&e.dataset.tvOld)e.value=e.dataset.tvOld;
+        delete e.dataset.tvEdit;delete e.dataset.tvOld;
+        e.removeEventListener('blur',h);
+      });
+    }else{
+      try{e.select();}catch(err){try{e.setSelectionRange(e.value.length,e.value.length);}catch(err2){}}
     }
   }
   function mark(doFocus){
@@ -74,7 +84,16 @@ body{zoom:0.75!important}
     if(k==='Enter'||k==='OK'||k==='Accept'||e.keyCode===13){
       if(ed){e.preventDefault();ae.blur();mark(false);return;}
       var a=items(),t=a[idx];
-      if(t){e.preventDefault();if(editable(t))focusItem(t);else t.click();}
+      if(t){
+        e.preventDefault();
+        if((t.tagName||'').toLowerCase()==='select'){
+          try{t.focus();}catch(err){}
+          ['mousedown','mouseup','click'].forEach(function(n){
+            t.dispatchEvent(new MouseEvent(n,{bubbles:true,cancelable:true,view:window}));
+          });
+        }else if(editable(t))focusItem(t);
+        else t.click();
+      }
       return;
     }
     if(k==='Escape'||k==='Esc'){if(ed){e.preventDefault();ae.blur();mark();}return;}
