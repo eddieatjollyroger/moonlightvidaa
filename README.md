@@ -43,7 +43,7 @@ still works. They are bind-mounted over the image's own files.
 They also fix two TV-specific hangs:
 - the worker (`478.js`) probe now has a 5s timeout, so a silent/failed worker
   can no longer leave the popup stuck on "Selecting pipeline automatically";
-- both `stream.js` and `478.js` are cache-busted (`?tv=14`);
+- both `stream.js` and `478.js` are cache-busted (`?tv=15`);
 - `stream.html` gives the CSS vars that position/resize the video sane defaults
   and pins `.video-stream` to a full-screen box (`object-fit:contain`). On VIDAA
   the on-screen-keyboard event that normally seeds those vars never fires, so
@@ -70,7 +70,7 @@ docker logs --tail 40 moonlight-web
 TV -> `https://192.168.1.69/`. Log in (first username/password you type
 creates the admin account), add the PC by its LAN IP, and pair with Sunshine.
 
-`stream.html` loads `stream.js?tv=14`, which in turn loads `478.js?tv=14`, so the
+`stream.html` loads `stream.js?tv=15`, which in turn loads `478.js?tv=15`, so the
 TV cannot silently reuse cached bundles from an earlier attempt.
 
 ### If WebCodecs still fails: force the Media Source fallback
@@ -219,7 +219,7 @@ The Sidee tile must be registered with `add_tile` (a real HTTP_APP entry
 showing `HTTP_APP_DEFAULT_URL<id>`), not as a raw-URL shortcut — otherwise the
 TV opens it in a fixed 1280x720 browser window.
 
-## Clean stream + smoothness metrics (tv=14)
+## Clean stream + smoothness metrics (tv=15)
 
 The green diagnostic and the `OK = FILL SCREEN` button are gone. The stream now
 collects WebRTC receive stats silently and posts them to TubeTV's `/api/log`
@@ -255,3 +255,11 @@ curl -s http://192.168.1.69:8484/logs | tail -3
 The first command should return `{"ok":true}` and the second should show the
 `MLSTATS test` line. The stream page also now calls the native `fetch` captured
 before the app can wrap it, so failed requests no longer raise UI toasts.
+
+### tv=15 metrics
+
+Adds `vFps` (video-element presented fps from `totalVideoFrames`),
+`pres`/`presFps` (frames counted via `requestVideoFrameCallback`), `recv` and
+`bytes`, and only samples peer connections in state `connected`. `vFps`/`presFps`
+are the reliable smoothness numbers on VIDAA Chrome 111, where `framesDecoded`
+can freeze.
