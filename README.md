@@ -186,8 +186,9 @@ the TV:
 - `/?mse720=1` - 720p / 20 fps / 4000 Kbps
 - `/?mse720p60=1` - 720p / 60 fps / 10000 Kbps
 - `/?mse1080p30=1` - 1080p / 30 fps / 8000 Kbps
-- `/?mse1080=1` - 1080p / 60 fps / 10000 Kbps (diagnostic; see below)
-- `/?webrtc=1` - back to the canvas/WebCodecs path at 720p / 20 fps / 4000
+- `/?mse1080=1` - 1080p / 60 fps / 10000 Kbps (stable working build)
+- `/?webrtc=1` - canvas/WebCodecs path at 720p / 20 fps / 4000
+- `/?webrtcve=1` - WebRTC direct to hardware `<video srcObject>` at 1080p / 60 fps / 10000 Kbps
 
 **Results so far:** 1080p60 connects but media time advances at only 0.37-0.54x
 wall clock - the hardware decoder cannot sustain it. The one-off
@@ -273,6 +274,20 @@ server/network bursts from pushing `buffered.end` ahead of `currentTime`; no
 seek and no timestamp rebase. Watch `MLMSE PACE` lines and `MLSTATS ahead`. If
 `ahead` settles near 0.1-0.3 with smooth 1080p60, this is the fix. If it adds
 delay or stutters, roll back to `static-patch-mse-stable1080`.
+
+**Pace result: failed.** The pacer logged a 48-frame burst at startup and
+slowly dribbled it out, adding roughly 0.8 s. `ahead` settled at ~1.6 s instead
+of ~1.1 s. The server delivers frames in bursts; client-side pacing converts
+those bursts into delay rather than removing them. Do not use this build.
+
+**Remaining avenue - WebRTC video element.** The app can attach the WebRTC
+`MediaStreamTrack` straight to a hardware `<video srcObject>` instead of feeding
+the WebCodecs/canvas renderer or MSE. Its WebRTC receiver already sets
+`jitterBufferTarget=0` and `playoutDelayHint=0`, so this path has no MSE live-edge
+buffer. `files/static-patch-rtcvideo/` uses the stable bundle with a fresh
+`?tv=30`; open `/?webrtcve=1` once. If 1080p60 appears and feels low-latency,
+this is the real fix. If WebRTC fails to connect, falls back to WebSocket, or
+shows no video, revert to `static-patch-mse-stable1080` and `/?mse1080=1`.
 
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
