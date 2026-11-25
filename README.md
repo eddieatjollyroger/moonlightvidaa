@@ -259,6 +259,21 @@ app's keyframe `seekToLatest()` for this build. Watch `MLMSE REBASE` lines in
 `/logs`; if `ahead` settles near 0.3-0.5 and the picture stays smooth, it worked.
 If video stalls, freezes, or A/V drifts worse, roll back to `static-patch-mse-stable1080`.
 
+**Rebase result: failed.** `ct` froze at 1.4 s while `pts` kept climbing and the
+offset grew more negative (`-0.43` → `-11.88`). MSE will not accept new frames
+whose timestamps move backwards after future frames were already appended, even
+after `remove()`. Do not use this build. `static-patch-mse-stable1080` remains
+the final working 1080p60 build; the residual ~1-2 s is the VIDAA browser/MSE
+floor for this setup.
+
+One final safe experiment: `files/static-patch-mse-pace/stream.js` (`?tv=29`).
+It wraps the stream WebSocket and paces only video frames (first byte `1`) at
+60 Hz, leaving control (`0`) and audio (`2`) untouched. The aim is to stop the
+server/network bursts from pushing `buffered.end` ahead of `currentTime`; no
+seek and no timestamp rebase. Watch `MLMSE PACE` lines and `MLSTATS ahead`. If
+`ahead` settles near 0.1-0.3 with smooth 1080p60, this is the fix. If it adds
+delay or stutters, roll back to `static-patch-mse-stable1080`.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
