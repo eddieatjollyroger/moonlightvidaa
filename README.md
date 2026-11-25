@@ -237,6 +237,18 @@ The IDR requests still cause forward jumps (`ct` cycling 0.83x/1.18x), so
 periodic IDR removed and a fresh cache-bust (`?tv=26`). Use `/?mse1080=1`.
 That should give smooth 1080p60 with the usual ~2 s MSE latency and no jumps.
 
+**Stable 1080p60 result:** smooth, steady 1:1, stutters gone. Remaining lag is
+roughly 1.1-1.3 s of buffered video (`ahead`) plus browser compositing. The
+one-off `addSourceBuffer ... readyState is not 'open'` line is a benign race when
+opening a preset; it does not affect playback.
+
+`files/static-patch-mse-creep/stream.js` is a preview-only experiment for the
+remaining lag: if `ahead > 0.85`, nudge `currentTime` forward by 0.10 s, at most
+once every 1.5 s. It is a much smaller step than the failed trim (which sought
+to `buffered.end - 0.20` every 400 ms), but it is still an untested seek loop.
+`stream.html` cache-bust is `?tv=27`. Do not install it unless the viewer wants
+one final reversible experiment. Roll back with `static-patch-mse-stable1080`.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
