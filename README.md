@@ -249,6 +249,16 @@ to `buffered.end - 0.20` every 400 ms), but it is still an untested seek loop.
 `stream.html` cache-bust is `?tv=27`. Do not install it unless the viewer wants
 one final reversible experiment. Roll back with `static-patch-mse-stable1080`.
 
+**Creep result:** no stutter, but no useful lag reduction either. The gain is
+too small to perceive. The next and last browser-side idea is
+`files/static-patch-mse-rebase/stream.js` (`?tv=28`). It removes future buffered
+video once `ahead > 0.50`, down to `currentTime + 0.35`, then shifts the next
+appended keyframe's MSE timestamps to land exactly there. That reduces the
+buffer without seeking, so VIDAA's decoder should not jump. It also disables the
+app's keyframe `seekToLatest()` for this build. Watch `MLMSE REBASE` lines in
+`/logs`; if `ahead` settles near 0.3-0.5 and the picture stays smooth, it worked.
+If video stalls, freezes, or A/V drifts worse, roll back to `static-patch-mse-stable1080`.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
