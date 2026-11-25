@@ -123,6 +123,33 @@ video element stuck at `readyState=1` and no buffered ranges.
 MediaSource path is the browser-only winner. If `ahead` grows, the next step is
 an IDR-aligned live-edge seek (the repo's finding 32), not more network tuning.
 
+### Why 1080p60 needs this path
+
+The canvas/WebCodecs renderer is software decoding on the TV's ARM CPU. 720p20
+is 18.4 M pixels/s; 1080p60 is 124.4 M pixels/s, 6.8x more. It cannot reach
+1080p60. The only browser-only route is MediaSource, which lets VIDAA's
+hardware video decoder do the work. Our first two MSE runs got audio only,
+with the video stuck at `readyState=1` and no buffered ranges - the init
+segment arrived but media fragments never did. That looks like an
+`appendBuffer` rejection being swallowed by a `try/catch` in the app.
+
+`files/static-patch-mse-diag/stream.js` is a diagnostic build. It wraps
+`SourceBuffer.appendBuffer`, `console.error` and `console.warn`, and polls the
+decoder's internal gate, then posts `MLMSE ...` lines to TubeTV's `/api/log`.
+It also makes the 5 s IDR failsafe call `tryAppendDecodeUnit()` after opening
+the gate, which the original patch did not do.
+
+```
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-diag/stream.js /mnt/ssd1/moonlight-web/static/stream.js
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-diag/stream.html /mnt/ssd1/moonlight-web/static/stream.html
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/stream.js /mnt/ssd1/moonlight-web/static/stream.html
+```
+
+Open `https://moonlight.joaopacheco.me/?mse=1` once, start a stream, then read
+`http://192.168.1.69:8484/logs` and look for `MLMSE APPEND` / `MLMSE ERR`.
+That tells us whether VIDAA rejects the fMP4 fragments and why. This build is
+diagnostic only; revert with the normal WebRTC copy when done.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
