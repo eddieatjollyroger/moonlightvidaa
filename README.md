@@ -150,6 +150,24 @@ Open `https://moonlight.joaopacheco.me/?mse=1` once, start a stream, then read
 That tells us whether VIDAA rejects the fMP4 fragments and why. This build is
 diagnostic only; revert with the normal WebRTC copy when done.
 
+**Result of the first diagnostic:** the app throws
+`tried to submit non idr as a keyframe` before appending anything. Its fMP4
+muxer asserts that NAL byte 4 is an IDR (type 5) whenever Moonlight marks a
+sample as a keyframe. Sunshine keyframes here start with AUD/SEI NALs, so byte 4
+is not the IDR and every keyframe sample is discarded. That is why
+`buffered=none` while `seq` keeps climbing.
+
+`files/static-patch-mse-diag2/stream.js` removes that strict assertion and adds
+`MLMSE BUF` lines showing the first 12 successful appends and their resulting
+buffered ranges. If buffered ranges now grow, the hardware decoder path is
+alive and 1080p60 is worth testing. Use it the same way (cache-bust `?tv=22`):
+
+```
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-diag2/stream.js /mnt/ssd1/moonlight-web/static/stream.js
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-diag2/stream.html /mnt/ssd1/moonlight-web/static/stream.html
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/stream.js /mnt/ssd1/moonlight-web/static/stream.html
+```
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
