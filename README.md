@@ -229,6 +229,14 @@ Reopen `?mse720p60=1` once. Watch that the picture stays smooth and that
 revert to the stable build - the host may not be honouring frequent IDR
 requests.
 
+**IDR result, and correction:** the frequent-IDR build made both 720p60 and
+1080p60 decode at ~1:1. My earlier "1080p60 is closed" conclusion was wrong:
+it was based on the *trim* build, which was the broken one. 1080p60 works.
+The IDR requests still cause forward jumps (`ct` cycling 0.83x/1.18x), so
+`files/static-patch-mse-stable1080/stream.js` is the same decoder with the
+periodic IDR removed and a fresh cache-bust (`?tv=26`). Use `/?mse1080=1`.
+That should give smooth 1080p60 with the usual ~2 s MSE latency and no jumps.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
