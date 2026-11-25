@@ -57,9 +57,26 @@ body{zoom:0.75!important}
         if(_st.canvasRenderer!==false){_st.canvasRenderer=false;_changed=true;}
         if(_st.forceVideoElementRenderer!==false){_st.forceVideoElementRenderer=false;_changed=true;}
       }
+      // One-shot presets so the TV never has to fight the settings UI.
+      if(/[?&]mse1080=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='websocket'){_st.dataTransport='websocket';_changed=true;}
+        if(_st.canvasRenderer!==false){_st.canvasRenderer=false;_changed=true;}
+        if(_st.forceVideoElementRenderer!==false){_st.forceVideoElementRenderer=false;_changed=true;}
+        if(_st.videoSize!=='1080p'){_st.videoSize='1080p';_changed=true;}
+        if(_st.fps!==60){_st.fps=60;_changed=true;}
+        if(_st.bitrate!==10000){_st.bitrate=10000;_changed=true;}
+      }
+      if(/[?&]mse720=1(?:&|$)/.test(_q)){
+        if(_st.videoSize!=='720p'){_st.videoSize='720p';_changed=true;}
+        if(_st.fps!==20){_st.fps=20;_changed=true;}
+        if(_st.bitrate!==4000){_st.bitrate=4000;_changed=true;}
+      }
       if(/[?&]webrtc=1(?:&|$)/.test(_q)){
         if(_st.dataTransport!=='auto'){_st.dataTransport='auto';_changed=true;}
         if(_st.canvasRenderer!==true){_st.canvasRenderer=true;_changed=true;}
+        if(_st.videoSize!=='720p'){_st.videoSize='720p';_changed=true;}
+        if(_st.fps!==20){_st.fps=20;_changed=true;}
+        if(_st.bitrate!==4000){_st.bitrate=4000;_changed=true;}
       }
     }catch(e){}
     if(_changed)localStorage.setItem('mlSettings',JSON.stringify(_st));

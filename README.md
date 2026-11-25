@@ -168,6 +168,36 @@ sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-diag2/stream.html 
 sudo chmod 644 /mnt/ssd1/moonlight-web/static/stream.js /mnt/ssd1/moonlight-web/static/stream.html
 ```
 
+**Result:** MSE now works. `ready=4`, `buffered` grows steadily, and `ahead`
+settles around 0.75-1.1 s instead of growing without bound. That is the
+hardware decoder path. The remaining delay is live-edge buffer, not network or
+decode throughput.
+
+`files/static-patch-mse-final/stream.js` keeps the IDR fix, drops the noisy
+`MLMSE BUF` / `MLMSE STATE` lines, and adds a live-edge trim: every 400 ms it
+seeks to `buffered.end - 0.20` when `ahead > 0.40`, so playback stays near the
+edge instead of drifting to ~1 s. `stream.html` cache-bust is `?tv=23`.
+
+One-shot presets in `files/tv-ui/index.html` avoid fighting the settings UI on
+the TV:
+
+- `/?mse=1` - WebSocket + MSE, keeps current resolution/fps/bitrate
+- `/?mse720=1` - 720p / 20 fps / 4000 Kbps
+- `/?mse1080=1` - 1080p / 60 fps / 10000 Kbps
+- `/?webrtc=1` - back to the canvas/WebCodecs path at 720p / 20 fps / 4000
+
+Copy both files plus the shim, then open the preset once on the TV:
+
+```
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-final/stream.js /mnt/ssd1/moonlight-web/static/stream.js
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-final/stream.html /mnt/ssd1/moonlight-web/static/stream.html
+sudo cp /home/eddie/moonlight-web-test/files/tv-ui/index.html /mnt/ssd1/moonlight-web/static/index.html
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/stream.js /mnt/ssd1/moonlight-web/static/stream.html /mnt/ssd1/moonlight-web/static/index.html
+```
+
+If 1080p60 holds with `ahead` near 0.2-0.4 s, that is the target configuration.
+If `ahead` climbs at 1080p60, drop to 1080p30 or 720p60 and compare.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
