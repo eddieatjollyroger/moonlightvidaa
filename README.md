@@ -289,6 +289,13 @@ buffer. `files/static-patch-rtcvideo/` uses the stable bundle with a fresh
 this is the real fix. If WebRTC fails to connect, falls back to WebSocket, or
 shows no video, revert to `static-patch-mse-stable1080` and `/?mse1080=1`.
 
+**WebRTC video-element result:** still `mse:1`, so `auto` fell back to
+WebSocket. `files/static-patch-rtcdiag/` adds `MLCFG` and `MLMSE DBG` lines to
+show the applied settings and the transport/pipeline decision. Also added
+`/?webrtconly=1`, which uses `dataTransport='webrtc'` so it cannot silently
+fall back. This is diagnostic only; copy `stream.js`, `stream.html` (`?tv=31`)
+and `index.html`, open `?webrtconly=1`, and paste the startup lines.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
