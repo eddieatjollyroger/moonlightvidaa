@@ -308,6 +308,18 @@ mode and changes only presentation: `translateZ(0)`, `will-change:transform`,
 `<video>` itself. `?webrtconly=1` remains 1080p60/10000; `?webrtc8m=1` is the
 same path at 8000 Kbps for Wi-Fi loss. Watch `vFps`, `dec`, and `lost`.
 
+**Paint result:** no improvement. `lost=0`, low RTT/jitter, but `dec` freezes
+and `vFps` stays 2-5 at 4/6/8/10 Mbps and at 720p/1080p. VIDAA's `srcObject`
+video element simply does not present more than a few frames per second; it is
+not a network or encoder problem. Compositor/fullscreen CSS did not change it.
+
+Next fallback test: `files/static-patch-rtccanvas/` (`?tv=33`) uses WebRTC
+transport with the **canvas/WebCodecs renderer** instead of the video element,
+at 720p60 via `/?webrtc60=1`. That path paints via canvas, so it may hold 60 fps
+with low latency, though resolution is 720p. If it also stalls, the only
+structural idea left is sending H.264 over a WebRTC data channel into the fast
+MSE decoder (server-side Pi change), not a page tweak.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:

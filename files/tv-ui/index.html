@@ -123,6 +123,16 @@ body{zoom:0.75!important}
         if(_st.fps!==60){_st.fps=60;_changed=true;}
         if(_st.bitrate!==8000){_st.bitrate=8000;_changed=true;}
       }
+      // WebRTC + canvas/WebCodecs renderer: keeps the low-latency transport but
+      // avoids VIDAA's slow <video srcObject> paint path. Diagnostic at 720p60.
+      if(/[?&]webrtc60=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='webrtc'){_st.dataTransport='webrtc';_changed=true;}
+        if(_st.canvasRenderer!==true){_st.canvasRenderer=true;_changed=true;}
+        if(_st.forceVideoElementRenderer!==false){_st.forceVideoElementRenderer=false;_changed=true;}
+        if(_st.videoSize!=='720p'){_st.videoSize='720p';_changed=true;}
+        if(_st.fps!==60){_st.fps=60;_changed=true;}
+        if(_st.bitrate!==8000){_st.bitrate=8000;_changed=true;}
+      }
     }catch(e){}
     try{
       var _x=window.fetch?window.fetch.bind(window):null;
