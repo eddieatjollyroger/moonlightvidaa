@@ -66,6 +66,24 @@ body{zoom:0.75!important}
         if(_st.fps!==60){_st.fps=60;_changed=true;}
         if(_st.bitrate!==10000){_st.bitrate=10000;_changed=true;}
       }
+      // 1080p60 decodes at ~0.4x realtime on this TV. 720p60 is the 60 fps
+      // preset the hardware decoder can actually sustain.
+      if(/[?&]mse720p60=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='websocket'){_st.dataTransport='websocket';_changed=true;}
+        if(_st.canvasRenderer!==false){_st.canvasRenderer=false;_changed=true;}
+        if(_st.forceVideoElementRenderer!==false){_st.forceVideoElementRenderer=false;_changed=true;}
+        if(_st.videoSize!=='720p'){_st.videoSize='720p';_changed=true;}
+        if(_st.fps!==60){_st.fps=60;_changed=true;}
+        if(_st.bitrate!==10000){_st.bitrate=10000;_changed=true;}
+      }
+      if(/[?&]mse1080p30=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='websocket'){_st.dataTransport='websocket';_changed=true;}
+        if(_st.canvasRenderer!==false){_st.canvasRenderer=false;_changed=true;}
+        if(_st.forceVideoElementRenderer!==false){_st.forceVideoElementRenderer=false;_changed=true;}
+        if(_st.videoSize!=='1080p'){_st.videoSize='1080p';_changed=true;}
+        if(_st.fps!==30){_st.fps=30;_changed=true;}
+        if(_st.bitrate!==8000){_st.bitrate=8000;_changed=true;}
+      }
       if(/[?&]mse720=1(?:&|$)/.test(_q)){
         if(_st.videoSize!=='720p'){_st.videoSize='720p';_changed=true;}
         if(_st.fps!==20){_st.fps=20;_changed=true;}
