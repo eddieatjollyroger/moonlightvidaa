@@ -115,6 +115,14 @@ body{zoom:0.75!important}
         if(_st.fps!==60){_st.fps=60;_changed=true;}
         if(_st.bitrate!==10000){_st.bitrate=10000;_changed=true;}
       }
+      if(/[?&]webrtc8m=1(?:&|$)/.test(_q)){
+        if(_st.dataTransport!=='webrtc'){_st.dataTransport='webrtc';_changed=true;}
+        if(_st.canvasRenderer!==false){_st.canvasRenderer=false;_changed=true;}
+        if(_st.forceVideoElementRenderer!==true){_st.forceVideoElementRenderer=true;_changed=true;}
+        if(_st.videoSize!=='1080p'){_st.videoSize='1080p';_changed=true;}
+        if(_st.fps!==60){_st.fps=60;_changed=true;}
+        if(_st.bitrate!==8000){_st.bitrate=8000;_changed=true;}
+      }
     }catch(e){}
     try{
       var _x=window.fetch?window.fetch.bind(window):null;

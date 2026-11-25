@@ -296,6 +296,18 @@ show the applied settings and the transport/pipeline decision. Also added
 fall back. This is diagnostic only; copy `stream.js`, `stream.html` (`?tv=31`)
 and `index.html`, open `?webrtconly=1`, and paste the startup lines.
 
+**WebRTC video-element result: success for latency, weak paint rate.** The
+viewer reports the input lag vanished. Stats show `rtt` 2-8 ms, but `vFps` only
+2-4 and `dec` sometimes freezes while `recv` climbs. Two separate issues:
+VIDAA's `<video>` element is not being promoted to a fast compositor layer, and
+there are packet-loss spikes (`lost=548`, `rtt=47` in one sample).
+
+`files/static-patch-rtcpaint/stream.js` (`?tv=32`) keeps WebRTC video-element
+mode and changes only presentation: `translateZ(0)`, `will-change:transform`,
+`backface-visibility:hidden`, `object-fit:fill`, and requests fullscreen on the
+`<video>` itself. `?webrtconly=1` remains 1080p60/10000; `?webrtc8m=1` is the
+same path at 8000 Kbps for Wi-Fi loss. Watch `vFps`, `dec`, and `lost`.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
