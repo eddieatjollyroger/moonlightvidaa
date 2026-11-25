@@ -209,6 +209,26 @@ Next test is `/?mse720p60=1` on the stable (no-trim) build. Judge it by the
 picture and by `ct` advancing about 1 s per wall-clock second, not by `ahead`
 alone. If it stutters, 60 fps browser-only is closed on this TV.
 
+**720p60 result:** it holds ~1:1 and is much better, but still ~2 s behind.
+`ahead` cycles from ~0.1 to ~1.0 because the app only seeks to the live edge
+when a keyframe arrives, and Sunshine's keyframes are far apart. The app can
+ask the host for an IDR over the control channel, and it already does so after
+dropped frames. `files/static-patch-mse-idr/stream.js` asks for an IDR every
+3 s. Each IDR makes the decoder seek to the live edge, but *at a keyframe*, so
+it should lower latency without the freeze caused by arbitrary seeks.
+`stream.html` cache-bust is `?tv=25`. Copy just these two files:
+
+```
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-idr/stream.js /mnt/ssd1/moonlight-web/static/stream.js
+sudo cp /home/eddie/moonlight-web-test/files/static-patch-mse-idr/stream.html /mnt/ssd1/moonlight-web/static/stream.html
+sudo chmod 644 /mnt/ssd1/moonlight-web/static/stream.js /mnt/ssd1/moonlight-web/static/stream.html
+```
+
+Reopen `?mse720p60=1` once. Watch that the picture stays smooth and that
+`ahead` now peaks nearer 0.4 s instead of 1.0 s. If the picture freezes again,
+revert to the stable build - the host may not be honouring frequent IDR
+requests.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:
