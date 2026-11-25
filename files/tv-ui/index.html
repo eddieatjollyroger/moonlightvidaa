@@ -137,7 +137,7 @@ body{zoom:0.75!important}
     try{
       var _x=window.fetch?window.fetch.bind(window):null;
       if(_x)_x('https://moonlight.joaopacheco.me:8444/api/log',{method:'POST',mode:'no-cors',keepalive:true,
-        body:'MLCFG q='+(location.search||'none')+' dt='+_st.dataTransport+' cr='+_st.canvasRenderer+' fv='+_st.forceVideoElementRenderer+' size='+_st.videoSize+' fps='+_st.fps+' br='+_st.bitrate});
+        body:'MLCFG q='+(location.search||'none')+' dt='+_st.dataTransport+' cr='+_st.canvasRenderer+' fv='+_st.forceVideoElementRenderer+' size='+_st.videoSize+' fps='+_st.fps+' br='+_st.bitrate+' rtcxform='+(('RTCRtpScriptTransform' in window)?1:0)+' rxslice='+((window.RTCRtpReceiver&&'transform' in RTCRtpReceiver.prototype)?1:0)});
     }catch(e){}
     if(_changed)localStorage.setItem('mlSettings',JSON.stringify(_st));
   }catch(e){}
