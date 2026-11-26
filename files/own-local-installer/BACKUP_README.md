@@ -7,6 +7,8 @@ or into this repository by hand.
 ## What is in the repo
 
 - `ownmoon-local.html` - decoded Moonlight HTML rebuilt from TV logs
+- `sidee-clone.html` - TV page that copies the packed `index.html` verbatim to
+  `ownmoon-local.html`; this preserves the launcher-ready wrapper
 - `sidee-export.html` - TV page that decodes the installed bundle and exports it
 - `sidee-localize.html` - TV page that writes the decoded app into `Local_ebook`
 - `install-ownmoon-local.html` - tile installer with backup/restore
@@ -48,7 +50,33 @@ sha256  70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86
 The byte check is deliberate: the HTML contains accented characters, so its
 JavaScript string length is 79689 even though its UTF-8 byte length is 79752.
 
-## Install / restore to the TV
+## Preferred local tile setup
+
+Use `sidee-clone.html` before the decoded-file installer. The decoded inner app
+alone showed `error code 6`; the packed wrapper is what the launcher expects.
+
+Open on the TV:
+
+```text
+https://moonlight.joaopacheco.me/own-webrtc/sidee-clone.html
+```
+
+Press:
+
+```text
+1 CLONE TO LOCAL FILE
+```
+
+Then power-cycle the TV. The tile can stay pointed at:
+
+```text
+file:///APPS/emanual/Local_ebook/ownmoon-local.html
+```
+
+Do not press `0 WRITE FILE FROM HTTPS` afterward; that would overwrite the
+packed copy with the decoded app again.
+
+## Fallback: decoded-file install / restore
 
 First copy the rebuilt file and updated installer from the Mac to the Pi home:
 

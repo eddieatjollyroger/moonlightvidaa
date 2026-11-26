@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clone Packed Sidee Index</title>
+<style>
+body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
+h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:180px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>CLONE PACKED SIDEE INDEX</h1>
+<p>COPIES THE WORKING WRAPPER VERBATIM. NO DECODE. NO ROOT.</p>
+<div>
+<button id="clone">1 CLONE TO LOCAL FILE</button>
+<button id="verify">2 VERIFY LOCAL</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var SRC='emanual/Local_ebook/index.html';
+var DST='emanual/Local_ebook/ownmoon-local.html';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function read(path){
+  var r=call('fileRead',{path:path,mode:6});
+  if(!isOk(r))throw new Error('READ '+path+' '+JSON.stringify(r).slice(0,250));
+  var t=body(r);if(t===null)throw new Error('NO BODY '+path);
+  return t;
+}
+function write(path,text){
+  var r=call('fileWrite',{path:path,mode:6,writedata:text});
+  if(!isOk(r))throw new Error('WRITE '+path+' '+JSON.stringify(r).slice(0,250));
+}
+function byteLen(text){return new TextEncoder().encode(text).length;}
+async function sha256(text){
+  if(!window.crypto||!crypto.subtle)throw new Error('NO SUBTLECRYPTO');
+  var bytes=new TextEncoder().encode(text);
+  var buf=await crypto.subtle.digest('SHA-256',bytes);
+  var arr=new Uint8Array(buf);
+  var hex='';
+  for(var i=0;i<arr.length;i++)hex+=('0'+arr[i].toString(16)).slice(-2);
+  return hex;
+}
+function head(text,n){return text.slice(0,n||100).replace(/\s+/g,' ');}
+
+document.getElementById('clone').addEventListener('click',async function(){
+  clear();
+  try{
+    var src=read(SRC);
+    var srcBytes=byteLen(src);
+    var srcHash=await sha256(src);
+    ok('SRC BYTES '+srcBytes);
+    ok('SRC SHA '+srcHash);
+    write(DST,src);
+    var check=read(DST);
+    if(byteLen(check)!==srcBytes)throw new Error('VERIFY BYTES '+byteLen(check)+' != '+srcBytes);
+    var checkHash=await sha256(check);
+    if(checkHash!==srcHash)throw new Error('VERIFY SHA '+checkHash);
+    ok('LOCAL BYTES '+byteLen(check));
+    ok('LOCAL SHA '+checkHash);
+    ok('HEAD '+head(check,100));
+    warn('POWER CYCLE TV THEN OPEN OWN MOON');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('verify').addEventListener('click',async function(){
+  clear();
+  try{
+    var t=read(DST);
+    ok('LOCAL BYTES '+byteLen(t));
+    ok('LOCAL SHA '+await sha256(t));
+    ok('HEAD '+head(t,100));
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>

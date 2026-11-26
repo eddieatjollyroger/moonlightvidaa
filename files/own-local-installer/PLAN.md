@@ -257,6 +257,10 @@ New files:
   First version compared `text.length` to 79752 and failed with
   `FETCH LEN 79689`; 79752 is UTF-8 bytes while JS string length is 79689 due
   to 46 accented/non-ASCII chars. Now compares `TextEncoder` byte length.
+- Installing only the decoded inner app produced `error code 6` in the VIDAA
+  launcher, likely because the packed wrapper performs the ready handshake.
+  Added `sidee-clone.html`, which copies the packed `index.html` verbatim to
+  `ownmoon-local.html`; this is now the preferred local tile path.
 - `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.
 
 `D2AUDIT` result: no `fetch`, no `XMLHttpRequest`, no `http://` or `https://`
