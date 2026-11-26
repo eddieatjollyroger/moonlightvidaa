@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AppInfo Audit</title>
+<style>
+body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
+h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:160px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>APPINFO AUDIT</h1>
+<p>DUMPS SIDEE AND OWN ENTRIES. TESTS FILE PATH WITHOUT TOUCHING SIDEE.</p>
+<div>
+<button id="dump">1 DUMP ENTRIES</button>
+<button id="useside">2 USE SIDEE FILE</button>
+<button id="uselocal">3 USE LOCAL FILE</button>
+<button id="read">4 READBACK</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var LOG='https://moonlight.joaopacheco.me:8444/api/log';
+var APPINFO='websdk/Appinfo.json';
+var BAK='websdk/Appinfo.json.ownbak-audit';
+var APP_ID='ownmoon';
+var SIDEE_URL='file:///APPS/emanual/Local_ebook/index.html?app=moonlight';
+var LOCAL_URL='file:///APPS/emanual/Local_ebook/ownmoon-local.html?app=moonlight';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function read(path){
+  var r=call('fileRead',{path:path,mode:6});
+  if(!isOk(r))throw new Error('READ '+path+' '+JSON.stringify(r).slice(0,250));
+  var t=body(r);if(t===null)throw new Error('NO BODY '+path);
+  return t;
+}
+function write(path,text){
+  var r=call('fileWrite',{path:path,mode:6,writedata:text});
+  if(!isOk(r))throw new Error('WRITE '+path+' '+JSON.stringify(r).slice(0,250));
+}
+function ensureBackup(){
+  if(isOk(call('fileRead',{path:BAK,mode:6})))return;
+  write(BAK,read(APPINFO));
+}
+function parseAppinfo(text){
+  var d=JSON.parse(text);
+  if(Array.isArray(d))d={AppInfo:d};
+  if(!d.AppInfo||!Array.isArray(d.AppInfo))d.AppInfo=[];
+  return d;
+}
+function findSidee(list){
+  for(var i=0;i<list.length;i++){
+    var a=list[i];if(!a)continue;
+    var u=String(a.URL||'');
+    if(u.indexOf('Local_ebook/index.html')>=0&&u.indexOf('app=moonlight')>=0)return a;
+    if(String(a.Id||'').indexOf('moonlight-')===0)return a;
+  }
+  return null;
+}
+function findOwn(list){
+  for(var i=0;i<list.length;i++){
+    var a=list[i];if(!a)continue;
+    if(a.Id===APP_ID||String(a.URL||'').indexOf('ownmoon-local')>=0)return a;
+  }
+  return null;
+}
+function pause(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function post(tag,text){
+  var s=String(text==null?'':text),size=700;
+  var n=Math.max(1,Math.ceil(s.length/size));
+  for(var i=0;i<n;i++){
+    try{
+      await fetch(LOG,{method:'POST',body:'APPDIF '+tag+' '+i+'/'+n+' '+s.slice(i*size,(i+1)*size),mode:'no-cors',keepalive:true});
+    }catch(e){}
+    await pause(120);
+  }
+  return n;
+}
+function setUrl(url){
+  ensureBackup();
+  var data=parseAppinfo(read(APPINFO));
+  var a=findOwn(data.AppInfo);
+  if(!a)throw new Error('OWN ENTRY NOT FOUND');
+  a.URL=url;a.StartCommand=url;
+  write(APPINFO,JSON.stringify(data));
+}
+
+document.getElementById('dump').addEventListener('click',async function(){
+  clear();
+  try{
+    var data=parseAppinfo(read(APPINFO));
+    var s=findSidee(data.AppInfo),o=findOwn(data.AppInfo);
+    await post('SIDEE',JSON.stringify(s||{}));
+    await post('OWN',JSON.stringify(o||{}));
+    ok('COUNT '+data.AppInfo.length);
+    ok('SIDEE '+(s?'FOUND':'MISSING'));
+    ok('OWN '+(o?'FOUND':'MISSING'));
+    warn('CHECK LOGS APPDIF SIDEE / OWN');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('useside').addEventListener('click',function(){
+  clear();
+  try{setUrl(SIDEE_URL);ok('USE SIDEE FILE');warn('POWER CYCLE TV');}
+  catch(e){bad(e.message);}
+});
+
+document.getElementById('uselocal').addEventListener('click',function(){
+  clear();
+  try{setUrl(LOCAL_URL);ok('USE LOCAL FILE');warn('POWER CYCLE TV');}
+  catch(e){bad(e.message);}
+});
+
+document.getElementById('read').addEventListener('click',function(){
+  clear();
+  try{
+    var data=parseAppinfo(read(APPINFO));
+    var o=findOwn(data.AppInfo);
+    if(!o){bad('OWN NOT FOUND');return;}
+    ok('URL '+String(o.URL||''));
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>
