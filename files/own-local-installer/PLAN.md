@@ -169,3 +169,8 @@ non-`index.html` local files are allowed. Full bundle as `websdk/index.html`
 still threw error 6. Therefore the problem is bundle content, not path/filename.
 `make_ladder.py` + `content-ladder.html` bisect the bundle by overwriting the
 working hello file with progressively larger variants.
+
+Ladder result: `4 NO IMAGE` (full JS, data image) got past error 6 but left the
+**TV spinner** — the browser never finished loading. So the HTTPS logo image
+caused error 6, and one of the JS files likely causes the spinner. All JS ladder
+variants now use a data image so scripts can be bisected cleanly.

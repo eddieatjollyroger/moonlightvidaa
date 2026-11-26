@@ -4,7 +4,6 @@ Each variant is written to the same flat file that the working hello tile
 points at, so no AppInfo changes are needed while bisecting.
 """
 from pathlib import Path
-import re
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parent / "own-webrtc"
@@ -30,7 +29,7 @@ html = html.replace(
 )
 html = html.replace(
     'src="assets/moonlight-logo.svg?v=own1"',
-    'src="https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-logo.svg"',
+    'src="data:image/gif;base64,R0lGODlhAQABAAAAACw="',
 )
 
 
@@ -59,13 +58,9 @@ files = {
     "ladder-jsall.html": (HERE / "ownmoon.html").read_text(encoding="utf-8"),
 }
 
-noimg = inline(SCRIPTS)
-noimg = re.sub(
-    r'src="https://moonlight\.joaopacheco\.me/own-webrtc/assets/moonlight-logo\.svg"',
-    'src="data:image/gif;base64,R0lGODlhAQABAAAAACw="',
-    noimg,
-)
-files["ladder-noimg.html"] = noimg
+for i in range(1, len(SCRIPTS) + 1):
+    files["ladder-js%d.html" % i] = inline(SCRIPTS[:i])
+files["ladder-noimg.html"] = inline(SCRIPTS)
 
 for name, text in files.items():
     (OUT / name).write_text(text, encoding="utf-8")
