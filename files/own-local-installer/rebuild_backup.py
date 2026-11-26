@@ -1,10 +1,10 @@
-"""Rebuild the decoded local Moonlight HTML from SIDEE BKUP2 log lines.
+"""Rebuild the decoded local Moonlight HTML from SIDEE BKUP3 log lines.
 
 Usage:
     python3 rebuild_backup.py LOGS.txt OUTPUT.html
 
 LOGS.txt can be a raw dump of http://192.168.1.69:8484/logs.
-BKUP2 lines are preferred. Older partial BKUP lines are used only as a fallback.
+BKUP3 is preferred. Older BKUP2/BKUP lines are fallbacks only.
 """
 from pathlib import Path
 import base64
@@ -12,8 +12,11 @@ import hashlib
 import re
 import sys
 
-TAG2 = re.compile(r"SIDEE\s+BKUP2\s+(\d+)/(\d+)\s+(.*)$")
-TAG1 = re.compile(r"SIDEE\s+BKUP\s+(\d+)/(\d+)\s+(.*)$")
+TAGS = [
+    ("BKUP3", re.compile(r"SIDEE\s+BKUP3\s+(\d+)/(\d+)\s+(.*)$")),
+    ("BKUP2", re.compile(r"SIDEE\s+BKUP2\s+(\d+)/(\d+)\s+(.*)$")),
+    ("BKUP", re.compile(r"SIDEE\s+BKUP\s+(\d+)/(\d+)\s+(.*)$")),
+]
 CHARS = re.compile(r"[^A-Za-z0-9+/=]")
 
 
@@ -27,6 +30,8 @@ def collect(src, tag):
         index = int(m.group(1))
         count = int(m.group(2))
         data = CHARS.sub("", m.group(3))
+        if not data:
+            continue
         if total is None:
             total = count
         elif total != count:
@@ -40,14 +45,17 @@ def main():
         raise SystemExit("usage: rebuild_backup.py LOGS.txt OUTPUT.html")
 
     src = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
-    chunks, total = collect(src, TAG2)
-    tag_name = "BKUP2"
-    if not chunks:
-        chunks, total = collect(src, TAG1)
-        tag_name = "BKUP"
+    chunks = {}
+    total = None
+    tag_name = None
+    for name, tag in TAGS:
+        chunks, total = collect(src, tag)
+        if chunks:
+            tag_name = name
+            break
 
     if not chunks:
-        raise SystemExit("no SIDEE BKUP2 or BKUP lines found")
+        raise SystemExit("no SIDEE BKUP3 / BKUP2 / BKUP lines found")
     missing = [i for i in range(total) if i not in chunks]
     if missing:
         raise SystemExit("missing chunks: " + ",".join(map(str, missing[:20])))

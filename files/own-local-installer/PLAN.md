@@ -237,13 +237,16 @@ New files:
   `file:///APPS/emanual/Local_ebook/ownmoon-local.html`, with readback/remove/
   restore. Sidee entry itself is untouched.
 - `sidee-export.html` - decodes installed `index.html` and base64-exports the
-  decoded Moonlight HTML to `SIDEE BKUP2` log chunks, with SHA-256. It no longer
+  decoded Moonlight HTML to `SIDEE BKUP3` log chunks, with SHA-256. It no longer
   depends on `ownmoon-local.html` existing; this fixes the observed
   `FAIL READ ... ownmoon-local.html` when the localize step did not write.
-  First attempt used 36 chunks of 3000 chars; the log endpoint kept only 22
-  (`0-20` and `35`). Now uses 9 chunks of 12000 chars with spacing.
-- `rebuild_backup.py` - rebuilds the exact HTML from a raw logs dump, preferring
-  `BKUP2` over older partial `BKUP` lines.
+  First attempt used 36 chunks of 3000 chars in a tight burst; the log endpoint
+  kept only 22 (`0-20` and `35`). Second attempt used 9 chunks of 12000 chars;
+  the endpoint accepted the POSTs but dropped all bodies, leaving blank lines.
+  Now uses 36 chunks of 3000 chars again, but posted sequentially with 150 ms
+  spacing and a retry. `BKUP3` avoids mixing attempts.
+- `rebuild_backup.py` - rebuilds from raw logs, preferring `BKUP3`, then `BKUP2`,
+  then `BKUP`; empty chunks are ignored.
 - `BACKUP_README.md` - local repository instructions and provenance.
 - `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.
 

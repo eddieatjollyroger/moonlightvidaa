@@ -22,8 +22,8 @@ pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-h
 <script>
 var LOG='https://moonlight.joaopacheco.me:8444/api/log';
 var SRC='emanual/Local_ebook/index.html';
-var TAG='BKUP2';
-var CHUNK=12000;
+var TAG='BKUP3';
+var CHUNK=3000;
 
 function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
 function clear(){document.getElementById('out').textContent='';}
@@ -55,7 +55,7 @@ async function post(tag,text){
       }catch(e){}
       await pause(200);
     }
-    await pause(80);
+    await pause(150);
   }
   return n;
 }
@@ -110,7 +110,7 @@ document.getElementById('export').addEventListener('click',async function(){
     var hash=await sha256(d.html);
     var b64=toBase64(d.html);
     var n=await post(TAG,b64);
-    await post('INFO2','SRC '+SRC+' BLOB '+d.b64.length+' UTF8 '+bytes.length);
+    await post('INFO3','SRC '+SRC+' BLOB '+d.b64.length+' UTF8 '+bytes.length);
     ok('TAG '+TAG);
     ok('SOURCE LEN '+d.idx.length);
     ok('BLOB LEN '+d.b64.length);
