@@ -43,7 +43,38 @@ AFTER = """<script>
 </script>
 """
 
-out = before + BEFORE + app_block + AFTER + after
-name = "ladder-js9-errlog.html"
-(HERE / name).write_text(out, encoding="utf-8")
-print("wrote", name, len(out.encode("utf-8")), "bytes")
+LOADBEFORE = """<script>
+(function () {
+  var L = 'https://moonlight.joaopacheco.me:8444/api/log';
+  function p(s) {
+    try { fetch(L, {method:'POST', body:'MLDBG ' + s, mode:'no-cors', keepalive:true}); } catch (e) {}
+  }
+  function state(tag) {
+    var h = document.getElementById('home-screen');
+    var l = document.getElementById('launching-screen');
+    var s = document.getElementById('streaming-screen');
+    var a = document.activeElement;
+    p(tag + ' ready=' + document.readyState + ' vis=' + document.visibilityState +
+      ' home=' + (h && h.hidden !== undefined ? (h.hidden ? 'HIDDEN' : 'SHOWN') : 'NA') +
+      ' launch=' + (l && l.hidden !== undefined ? (l.hidden ? 'HIDDEN' : 'SHOWN') : 'NA') +
+      ' stream=' + (s && s.hidden !== undefined ? (s.hidden ? 'HIDDEN' : 'SHOWN') : 'NA') +
+      ' focus=' + (a ? (a.id || a.tagName) : 'NONE'));
+  }
+  window.addEventListener('load', function () { state('LOAD'); });
+  setTimeout(function () { state('HB1'); }, 1500);
+  setTimeout(function () { state('HB4'); }, 4000);
+  window.onerror = function (m, s, l, c, e) {
+    p('ONERROR ' + m + ' @' + l + ':' + c + (e && e.stack ? ' STACK ' + e.stack : ''));
+  };
+  p('BEFORE APP');
+}());
+</script>
+"""
+
+for filename, prefix in [
+    ("ladder-js9-errlog.html", BEFORE),
+    ("ladder-js9-loadlog.html", LOADBEFORE),
+]:
+    out = before + prefix + app_block + AFTER + after
+    (HERE / filename).write_text(out, encoding="utf-8")
+    print("wrote", filename, len(out.encode("utf-8")), "bytes")

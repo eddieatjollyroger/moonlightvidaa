@@ -212,4 +212,8 @@ The persistent TV spinner is therefore not caused by our JavaScript. Next check
 is a vendor readiness/focus signal or a pending resource that Sidee handles.
 `sidee-read2.html` now logs `D2VENDOR` snippets for `HiUtils`, `Hisense`,
 `VIDAA`, `postMessage`, `ready`, `visibility`, VIDAA keycodes, `fullscreen`,
-`exit`, and `quit`.
+`exit`, and `quit`. `D2VENDOR` result: no `HiUtils`/`Hisense`/ready/postMessage
+call. Only VIDAA keycodes and the Sidee install-token meta. So no vendor ready
+signal explains the spinner. `ladder-js9-loadlog.html` now logs `LOAD`, `HB1`,
+`HB4` with `readyState`, `visibilityState`, home/launch/stream hidden states, and
+`activeElement`, to see whether the page is alive behind the launcher spinner.
