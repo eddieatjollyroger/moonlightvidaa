@@ -254,6 +254,9 @@ New files:
   `70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86`, writes
   `emanual/Local_ebook/ownmoon-local.html` via documented `fileWrite`, then
   reads it back and verifies again. This is the Sidee-independent restore path.
+  First version compared `text.length` to 79752 and failed with
+  `FETCH LEN 79689`; 79752 is UTF-8 bytes while JS string length is 79689 due
+  to 46 accented/non-ASCII chars. Now compares `TextEncoder` byte length.
 - `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.
 
 `D2AUDIT` result: no `fetch`, no `XMLHttpRequest`, no `http://` or `https://`

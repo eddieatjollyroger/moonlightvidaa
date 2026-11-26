@@ -66,6 +66,7 @@ async function sha256(text){
   for(var i=0;i<arr.length;i++)hex+=('0'+arr[i].toString(16)).slice(-2);
   return hex;
 }
+function byteLen(text){return new TextEncoder().encode(text).length;}
 function parseAppinfo(text){
   var d=JSON.parse(text);
   if(Array.isArray(d))d={AppInfo:d};
@@ -105,15 +106,15 @@ document.getElementById('writefile').addEventListener('click',async function(){
     var res=await fetch(BACKUP_URL,{cache:'no-store'});
     if(!res.ok)throw new Error('FETCH '+res.status);
     var text=await res.text();
-    if(text.length!==EXPECT_LEN)throw new Error('FETCH LEN '+text.length+' != '+EXPECT_LEN);
+    if(byteLen(text)!==EXPECT_LEN)throw new Error('FETCH BYTES '+byteLen(text)+' != '+EXPECT_LEN);
     var fetchedHash=await sha256(text);
     if(fetchedHash!==EXPECT_SHA)throw new Error('FETCH SHA '+fetchedHash);
     write(FILE,text);
     var check=read(FILE);
-    if(check.length!==EXPECT_LEN)throw new Error('WRITE LEN '+check.length);
+    if(byteLen(check)!==EXPECT_LEN)throw new Error('WRITE BYTES '+byteLen(check)+' != '+EXPECT_LEN);
     var writtenHash=await sha256(check);
     if(writtenHash!==EXPECT_SHA)throw new Error('WRITE SHA '+writtenHash);
-    ok('FILE WRITTEN '+check.length);
+    ok('FILE WRITTEN '+byteLen(check)+' BYTES');
     ok('SHA OK '+writtenHash);
     warn('NEXT BACKUP THEN ADD TILE');
   }catch(e){bad(e.message);}
@@ -133,7 +134,7 @@ document.getElementById('check').addEventListener('click',function(){
   clear();
   try{
     var t=read(FILE);
-    ok('FILE LEN '+t.length);
+    ok('FILE BYTES '+byteLen(t));
     ok('HEAD '+t.slice(0,120).replace(/\s+/g,' '));
   }catch(e){bad(e.message);}
 });

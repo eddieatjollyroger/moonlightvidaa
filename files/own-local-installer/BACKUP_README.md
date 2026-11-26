@@ -45,6 +45,9 @@ bytes   79752
 sha256  70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86
 ```
 
+The byte check is deliberate: the HTML contains accented characters, so its
+JavaScript string length is 79689 even though its UTF-8 byte length is 79752.
+
 ## Install / restore to the TV
 
 First copy the rebuilt file and updated installer from the Mac to the Pi home:
