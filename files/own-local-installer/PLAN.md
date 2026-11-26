@@ -206,5 +206,10 @@ gateway with `gateway-status`, `apps`, `start-session`. Even after the load hang
 is fixed, our client must be rewritten to speak Sunshine directly.
 
 `make_errlog.py` + `ladder-js9-errlog.html` add `MLDBG BEFORE APP`, `AFTER APP`,
-`ONERROR`, `ERREV`, and `REJECT` markers around `app.js`. This should distinguish
-a parse/runtime exception from an infinite startup loop.
+`ONERROR`, `ERREV`, and `REJECT` markers around `app.js`. Result: both `BEFORE
+APP` and `AFTER APP` logged, no error/rejection. `app.js` completes normally.
+The persistent TV spinner is therefore not caused by our JavaScript. Next check
+is a vendor readiness/focus signal or a pending resource that Sidee handles.
+`sidee-read2.html` now logs `D2VENDOR` snippets for `HiUtils`, `Hisense`,
+`VIDAA`, `postMessage`, `ready`, `visibility`, VIDAA keycodes, `fullscreen`,
+`exit`, and `quit`.

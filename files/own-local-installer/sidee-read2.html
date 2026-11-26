@@ -100,6 +100,17 @@ function snippets(text){
   }
   return hits;
 }
+function vendorHits(text){
+  var re=/HiUtils|Hisense|VIDAA|Vidaa|sidee-install-token|postMessage|document\.readyState|addEventListener\(\s*["']load|DOMContentLoaded|appReady|notify|visibilitychange|keyCode|29443|29460|29461|10009|requestFullscreen|exit|quit/gi;
+  var hits=[],m;
+  while((m=re.exec(text))!==null&&hits.length<120){
+    var start=Math.max(0,m.index-220);
+    var end=Math.min(text.length,m.index+m[0].length+220);
+    hits.push('@'+m.index+' '+text.slice(start,end).replace(/\s+/g,' '));
+    if(re.lastIndex===m.index)re.lastIndex++;
+  }
+  return hits;
+}
 async function decode(full){
   clear();decoded='';
   try{
@@ -113,17 +124,20 @@ async function decode(full){
 
     var u=urls(decoded);
     var s=snippets(decoded);
+    var v=vendorHits(decoded);
     post('D2HEAD',decoded.slice(0,12000));
     post('D2TAIL',decoded.slice(Math.max(0,decoded.length-12000)));
     post('D2URLS',u.join('\n'));
     post('D2SUM',s.join('\n'));
+    post('D2VENDOR',v.join('\n'));
     ok('URLS '+u.length);
     ok('SUMMARY '+s.length);
+    ok('VENDOR '+v.length);
     if(full){
       post('D2FULL',decoded);
       warn('FULL LOGGED');
     }
-    warn('CHECK LOGS D2HEAD D2TAIL D2URLS D2SUM');
+    warn('CHECK LOGS D2HEAD D2TAIL D2URLS D2SUM D2VENDOR');
   }catch(e){
     bad(e.message);
     post('D2ERR',e.message);
