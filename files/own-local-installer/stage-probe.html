@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Own Staging Probe</title>
+<style>
+body{background:#111;color:#eee;font:18px sans-serif;margin:24px}
+h1{font-size:28px}button{font:18px sans-serif;margin:4px 6px 4px 0;padding:8px 12px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:120px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>OWN STAGING PROBE - APP LEVEL ONLY</h1>
+<p>No root. No OAD. No boot. Writes only under /APPS/websdk via mode 6.</p>
+<div>
+<button id="backup">1 BACKUP APPINFO</button>
+<button id="write">2 WRITE TEST FILE</button>
+<button id="read">3 READ TEST FILE</button>
+<button id="restore">4 RESTORE APPINFO</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var BAK='websdk/Appinfo.json.ownbak-20261126';
+var TEST='websdk/ownmoon/probe.txt';
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function show(r,label){
+  out(label+' '+JSON.stringify(r).slice(0,1200),(r&&r.ret)?'ok':'bad');
+}
+document.getElementById('backup').addEventListener('click',function(){
+  clear();
+  try{
+    var r=call('fileRead',{path:'websdk/Appinfo.json',mode:6});
+    show(r,'READ');
+    var body=(r&&typeof r.msg==='string')?r.msg:null;
+    if(!body){out('NO APPINFO BODY - NOTHING TO BACK UP','bad');return;}
+    var w=call('fileWrite',{path:BAK,mode:6,writedata:body});
+    show(w,'BACKUP');
+  }catch(e){out('ERR '+e.message,'bad');}
+});
+document.getElementById('write').addEventListener('click',function(){
+  clear();
+  try{
+    var w=call('fileWrite',{path:TEST,mode:6,writedata:'OWN STAGING TEST OK 20261126'});
+    show(w,'WRITE');
+  }catch(e){out('ERR '+e.message,'bad');}
+});
+document.getElementById('read').addEventListener('click',function(){
+  clear();
+  try{show(call('fileRead',{path:TEST,mode:6}),'READ');}
+  catch(e){out('ERR '+e.message,'bad');}
+});
+document.getElementById('restore').addEventListener('click',function(){
+  clear();
+  try{
+    var b=call('fileRead',{path:BAK,mode:6});
+    show(b,'BAK READ');
+    var body=(b&&typeof b.msg==='string')?b.msg:null;
+    if(!body){out('NO BACKUP BODY','bad');return;}
+    var w=call('fileWrite',{path:'websdk/Appinfo.json',mode:6,writedata:body});
+    show(w,'RESTORE');
+    out('RESTART TV TO REFRESH LIST','warn');
+  }catch(e){out('ERR '+e.message,'bad');}
+});
+</script>
+</body>
+</html>
