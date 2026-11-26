@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Own Installer Probe</title>
+<style>
+body{background:#111;color:#eee;font:18px sans-serif;margin:24px}
+h1{font-size:28px}pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px}
+.ok{color:#7f7} .bad{color:#f77}
+</style>
+</head>
+<body>
+<h1>OWN INSTALL PROBE - READ ONLY</h1>
+<p>This page only reads. It does not write files or install anything.</p>
+<button id="go">RUN READ PROBE</button>
+<pre id="out">WAIT</pre>
+<script>
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function line(cls,s){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+document.getElementById('go').addEventListener('click',function(){
+  var out=document.getElementById('out');out.textContent='';
+  line('','UA '+navigator.userAgent.slice(0,140));
+  line('','HOST '+location.host);
+  line(typeof HiUtils_createRequest==='function'?'ok':'bad','HIUTILS '+typeof HiUtils_createRequest);
+  line(typeof Hisense_installApp==='function'?'ok':'bad','INSTALLAPP '+typeof Hisense_installApp);
+  line(typeof Hisense_uninstallApp==='function'?'ok':'bad','UNINSTALLAPP '+typeof Hisense_uninstallApp);
+  line(typeof Hisense_GetModelName==='function'?'ok':'bad','MODELFN '+typeof Hisense_GetModelName);
+  if(typeof Hisense_GetModelName==='function'){
+    try{line('','MODEL '+Hisense_GetModelName());}catch(e){line('','MODEL ERR '+e.message);}
+  }
+  if(typeof HiUtils_createRequest!=='function'){
+    line('bad','NO HIUTILS - THIS BRIDGE LANE IS CLOSED');return;
+  }
+  try{
+    var r=HiUtils_createRequest('fileRead',{path:'websdk/Appinfo.json',mode:6});
+    line('','READ '+JSON.stringify(r).slice(0,4000));
+    var body=null;
+    if(r&&typeof r.msg==='string')body=r.msg;
+    else if(r&&r.msg&&typeof r.msg.msg==='string')body=r.msg.msg;
+    if(body){
+      var list=JSON.parse(body);
+      var ids=(list.AppInfo||[]).map(function(a){return a.Id;});
+      line('ok','IDS '+ids.join(','));
+      line('','COUNT '+ids.length);
+    }else{
+      line('bad','NO APPINFO BODY - MAY BE ENOENT OR GATED');
+    }
+  }catch(e){
+    line('bad','READ ERR '+e.message);
+  }
+});
+</script>
+</body>
+</html>

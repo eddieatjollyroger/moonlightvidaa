@@ -320,6 +320,148 @@ with low latency, though resolution is 720p. If it also stalls, the only
 structural idea left is sending H.264 over a WebRTC data channel into the fast
 MSE decoder (server-side Pi change), not a page tweak.
 
+**Canvas result:** it played but in slow motion. `dec` climbed while `realFps`
+fell from 59 to ~18; WebCodecs cannot present 720p60 on this TV. Final capability
+check: `MLCFG ... rtcxform=0 rxslice=0`, so `RTCRtpScriptTransform` is absent.
+There is no way to feed WebRTC encoded frames into MSE from the page. The page-only
+path is closed on this TV; the Sidee local WebRTC app is a different path and works.
+
+Final page-based configurations:
+
+- `/?mse1080=1` + `static-patch-mse-stable1080` - smooth 1080p60, ~1-2 s lag.
+- `/?webrtconly=1` + `static-patch-rtcpaint/rtcdiag` - near-zero input lag, but
+  only ~4 fps because VIDAA's `<video srcObject>` in the TV browser does not paint
+  fast enough.
+- `/?webrtc60=1` + `static-patch-rtccanvas` - slow motion.
+
+Use the MSE build as the TV-browser fallback. Sidee+ Moonlight with
+Sunshine-Web-RTC is the working low-latency path; see below.
+
+## Sidee+ Moonlight - working low-latency path (2026-11-25)
+
+Sidee pairs over VIDAA MQTT and sends an `app_install` payload
+(`StoreType: 99`) with a URL. The sidee tile (`app_id=2471`) can write the
+launcher registry; the normal TV browser cannot. The store's 8-character code
+sends the tile to `/g/<code>`, which registers the selected app. The URL can be
+HTTP(S) or a staged local `file:///APPS/...` bundle, but the open-source Sidee
+core has no file-upload/stage primitive: it only registers a pointer. Local
+bundles come from the Sidee store/installer entitlement. Sidee+ is an
+entitlement gate for these builds.
+
+Installed tile:
+`moonlight-1cf59ea5bb9f  Moonlight  file:///APPS/emanual/Local_ebook/index.html?app=moonlight`
+
+Sidee+ Moonlight requires `Sunshine-Web-RTC` on the PC. That upstream project
+embeds the Moonlight WebRTC gateway in Sunshine: encoded frames go straight from
+Sunshine's encoder to WebRTC RTP/DTLS-SRTP, with control/gamepad on DataChannels
+and no Moonlight FEC/decrypt/loopback hop. It negotiates a zero playout-delay
+extension and separate audio, so the TV does not hold frames for jitter/lip-sync.
+
+Test result: installed Sidee Moonlight + `OpenstreamCo/Sunshine-Web-RTC`
+`v2026.1124.224937` on the gaming PC runs smoothly at **1440p60** with low
+latency. This is the real low-latency solution. The earlier ~4 fps result was
+specific to our TV-browser page + Pi gateway bundle; it does not apply to the
+Sidee local app with the WebRTC host fork.
+
+Why we missed it: our WebRTC diagnostics used the TV browser and a gateway that
+did not provide the Sunshine-Web-RTC zero-delay SDP path, so I assumed the
+`srcObject` paint bottleneck was universal. It is not. The Sidee app runs in a
+different local app context and, with the correct host, does not hit it.
+
+Keep `static-patch-mse-stable1080` + `/?mse1080=1` as the browser fallback.
+For low-lag gaming use Sidee Moonlight + Sunshine-Web-RTC. No TV DNS, root, or
+system changes are needed for that path.
+
+## Own no-paywall Moonlight tile (2026-11-25)
+
+Sidee's Moonlight bundle appears to be mostly packaging around the open-source
+`tsoas/moonlight-webrtc-tizen` client (we did not extract Sidee's JS). We copied that client into
+`files/own-webrtc/` and patched only the VIDAA-specific bits: seeded gateway
+`192.168.1.107:8000`, 1080p default, VIDAA back keys, fullscreen, and `MLOWN`
+stats. The low-latency host is still `OpenstreamCo/Sunshine-Web-RTC` on the PC.
+
+The client is served by its own small read-only container on Pi port `8485`.
+TubeTV is **not** changed or rebuilt. URL:
+
+```
+http://192.168.1.69:8485/?host=192.168.1.107&port=8000&v=1
+```
+
+Run these yourself (the assistant must not SSH to the Pi or run deploy scripts):
+
+```sh
+# from the Mac
+ssh eddie@192.168.1.69 'mkdir -p ~/own-webrtc ~/own-webrtc-serve'
+scp -r ~/moonlight-web-test/files/own-webrtc/. eddie@192.168.1.69:~/own-webrtc/
+scp ~/moonlight-web-test/files/own-webrtc-compose.yml eddie@192.168.1.69:~/own-webrtc-serve/docker-compose.yml
+ssh eddie@192.168.1.69 'cd ~/own-webrtc-serve && docker compose up -d'
+curl -fsSI http://192.168.1.69:8485/ | head
+```
+
+Bump `v=1` in the tile URL and in `index.html` when replacing client files, so
+the TV cannot keep a stale cached copy.
+
+Then:
+
+1. Copy `files/install_own_webrtc_tile.py` into the Sidee folder containing
+   `core.py` / `sidee.py`, then run `python3 install_own_webrtc_tile.py`.
+2. TV: Edit Home -> tick **Own Moonlight**. To undo it, untick the tile.
+3. Open **Own Moonlight**, approve the PIN in Sunshine Web UI, test 1080p60
+   (or select 1440p in Settings if the gateway offers it).
+4. Compare `MLOWN` lines at `http://192.168.1.69:8484/logs` with Sidee's
+   smooth 1440p60 result. The logger posts to the existing metrics proxy, so
+   TubeTV still needs no code change. If decoded FPS matches, stop paying for
+   Sidee+ Moonlight; if not, keep Sidee as the low-lag default.
+
+### Can we install OUR bundle as a local file:// app via free Sidee? (research only)
+
+Short answer: **not with the open-source Sidee core and no TV file writes.**
+
+Evidence from the pinned/upstream Sidee sources in this workspace:
+
+- `core/protocol.py::install_payload()` sends `type: app_install`,
+  `StoreType: 99`, and a `URL` string. It registers a launcher pointer; it does
+  not upload or stage files.
+- `core/client.py::add_tile()` only publishes the payload to MQTT and polls the
+  TV app list. There is no `install_app`, `upload`, `stage`, or `push_file`.
+- `sidee.py` exposes only `install <preset>` / `launch <preset>`; the dashboard
+  presets list just the Sidee tile. Our own scripts call `client.add_tile()`
+  directly, which is why arbitrary HTTP URLs work.
+- The captured store/TV pages say the TV browser cannot install; only the
+  Sidee tile's install session has write permission, and app installs use an
+  entitlement.
+- Our working Moonlight tile points at `file:///APPS/...` and is documented as
+  Sidee+; there is no local evidence that free Sidee can stage arbitrary files
+  there.
+- A diagnostic full payload (`Type: Browser`, `StoreType: custom`) did not add
+  capability on this firmware; canonical `StoreType: 99` works.
+- The separate `vidaa-edge` project has `HiUtils_createRequest('fileWrite', ...)`
+  for `Appinfo.json`, but that is a different privileged app-management lane,
+  not Sidee, and is outside our HTTP-only/no-TV-write boundary.
+
+Observed Sidee+ install flow:
+
+1. Free Sidee installs the store tile (`https://sidee.dpdns.org/t`) with
+   `StoreType: 99`.
+2. The store verifies the TV with a one-time 8-character code entered **inside
+   the Sidee tile**, not in the TV Browser.
+3. Choosing an app generates another one-time 8-hex code tied to an entitlement
+   job; the TV tile navigates to `/g/<code>`.
+4. The tile context (explicitly not context `16`, the unprivileged TV Browser)
+   performs the install. The plain TV Browser says it "cannot write files".
+5. The resulting launcher record can point at `file:///APPS/...`.
+
+Inferred, not captured: the Sidee+ backend sends a packaged bundle to that tile,
+the tile writes it into an app-owned writable area (Moonlight uses the E-Manual
+`Local_ebook` folder), then registers the `file://` URL. We do not have the
+`/g/<code>` server code, the archive format, or the exact VIDAA file API, so this
+cannot be reproduced from the open-source client alone.
+
+Conclusion: with free Sidee we can register HTTP(S) tiles only. A truly local
+`file:///APPS/...` bundle would require Sidee+'s staging entitlement or an
+app-level file-write lane. That is still not root/bricking territory, but it is
+not a free, zero-write path.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:

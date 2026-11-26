@@ -1,0 +1,2734 @@
+const GATEWAY_PROTOCOL_VERSION = 1;
+const GAMEPAD_PROTOCOL_VERSION = 1;
+const GAMEPAD_POLL_INTERVAL_MS = 1000 / 120;
+const GAMEPAD_KEEPALIVE_INTERVAL_MS = 250;
+const preferences = ClientPreferences.create();
+const gatewayStore = GatewayStore.create();
+
+const homeScreen = document.getElementById("home-screen");
+const streamingScreen = document.getElementById("streaming-screen");
+const launchingScreen = document.getElementById("launching-screen");
+const launchingAppElement = document.getElementById("launching-app");
+const launchingStatusElement = document.getElementById("launching-status");
+const launchingProgressElement = document.getElementById("launching-progress");
+const videoElement = document.getElementById("video");
+const diagnosticsElement = document.getElementById("diagnostics");
+const logElement = document.getElementById("log");
+const playbackPromptElement = document.getElementById("playback-prompt");
+const streamOverlay = document.getElementById("stream-overlay");
+const streamMenu = document.getElementById("stream-menu");
+const gatewayScreen = document.getElementById("gateway-screen");
+const applicationsScreen = document.getElementById("applications-screen");
+const settingsScreen = document.getElementById("settings-screen");
+const appSelect = document.getElementById("app-select");
+const resolutionSelect = document.getElementById("resolution-select");
+const codecSelect = document.getElementById("codec-select");
+const hdrSelect = document.getElementById("hdr-select");
+const bitrateSelect = document.getElementById("bitrate-select");
+const settingsSelectorMenu = document.getElementById("settings-selector-menu");
+const settingsSelectorHeading = document.getElementById("settings-selector-heading");
+const settingsSelectorOptions = document.getElementById("settings-selector-options");
+const runningAppMenu = document.getElementById("running-app-menu");
+const runningAppMenuHeading = document.getElementById("running-app-menu-heading");
+const resumeSessionButton = document.getElementById("resume-session-button");
+const stopHostSessionButton = document.getElementById("stop-host-session-button");
+const switchAppDialog = document.getElementById("switch-app-dialog");
+const switchAppMessage = document.getElementById("switch-app-message");
+const switchCancelButton = document.getElementById("switch-cancel-button");
+const switchConfirmButton = document.getElementById("switch-confirm-button");
+const gatewayEditorDialog = document.getElementById("gateway-editor-dialog");
+const gatewayEditorHeading = document.getElementById("gateway-editor-heading");
+const gatewayOctetButtons = Array.prototype.slice.call(document.querySelectorAll("[data-octet-index]"));
+const gatewayEditorError = document.getElementById("gateway-editor-error");
+const gatewayEditorCancelButton = document.getElementById("gateway-editor-cancel");
+const gatewayEditorConnectButton = document.getElementById("gateway-editor-connect");
+const gatewayContextMenu = document.getElementById("gateway-context-menu");
+const gatewayContextHeading = document.getElementById("gateway-context-heading");
+const gatewayEditButton = document.getElementById("gateway-edit-button");
+const gatewayRemoveButton = document.getElementById("gateway-remove-button");
+const gatewayRemoveDialog = document.getElementById("gateway-remove-dialog");
+const gatewayRemoveMessage = document.getElementById("gateway-remove-message");
+const gatewayRemoveCancelButton = document.getElementById("gateway-remove-cancel");
+const gatewayRemoveConfirmButton = document.getElementById("gateway-remove-confirm");
+const playButton = document.getElementById("play-button");
+const continueButton = document.getElementById("continue-button");
+const diagnosticsButton = document.getElementById("diagnostics-button");
+const stopButton = document.getElementById("stop-button");
+const homeMessage = document.getElementById("home-message");
+const gatewayStateElement = document.getElementById("gateway-state");
+const sunshineStateElement = document.getElementById("sunshine-state");
+const sessionStateElement = document.getElementById("session-state");
+const connectionStateElement = document.getElementById("connection-state");
+const iceStateElement = document.getElementById("ice-state");
+
+const overlay = {
+  app: document.getElementById("overlay-app"),
+  resolution: document.getElementById("overlay-resolution"),
+  fps: document.getElementById("overlay-fps"),
+  codec: document.getElementById("overlay-codec"),
+  bitrate: document.getElementById("overlay-bitrate"),
+  hdr: document.getElementById("overlay-hdr"),
+  gamepad: document.getElementById("overlay-gamepad"),
+  connection: document.getElementById("overlay-connection"),
+};
+
+const trackCounts = {
+  remote: document.getElementById("remote-tracks"),
+  video: document.getElementById("video-tracks"),
+  audio: document.getElementById("audio-tracks"),
+};
+
+const statistics = {
+  requestedResolution: document.getElementById("requested-resolution"),
+  requestedCodec: document.getElementById("requested-codec"),
+  requestedHdr: document.getElementById("requested-hdr"),
+  requestedBitrate: document.getElementById("requested-bitrate"),
+  actualResolution: document.getElementById("actual-resolution"),
+  receivedCodec: document.getElementById("received-codec"),
+  receivedColorSpace: document.getElementById("received-color-space"),
+  receivedTransfer: document.getElementById("received-transfer"),
+  receivedBitDepth: document.getElementById("received-bit-depth"),
+  receivedHdr: document.getElementById("received-hdr"),
+  video: {
+    framesReceived: document.getElementById("frames-received"),
+    framesDecoded: document.getElementById("frames-decoded"),
+    decodedFps: document.getElementById("decoded-fps"),
+    framesDropped: document.getElementById("frames-dropped"),
+    packetsReceived: document.getElementById("packets-received"),
+    packetsLost: document.getElementById("packets-lost"),
+    bytesReceived: document.getElementById("bytes-received"),
+  },
+  audio: {
+    packetsReceived: document.getElementById("audio-packets-received"),
+    packetsLost: document.getElementById("audio-packets-lost"),
+    bytesReceived: document.getElementById("audio-bytes-received"),
+    jitter: document.getElementById("audio-jitter"),
+  },
+};
+
+const gamepadDiagnostics = {
+  state: document.getElementById("gamepad-state"),
+  id: document.getElementById("gamepad-id"),
+  mapping: document.getElementById("gamepad-mapping"),
+  controlChannel: document.getElementById("control-channel-state"),
+  inputChannel: document.getElementById("input-channel-state"),
+  sendRate: document.getElementById("input-send-rate"),
+  lastSequence: document.getElementById("last-input-sequence"),
+  controllers: document.getElementById("controller-diagnostics"),
+};
+
+const GAMEPAD_BUTTONS = {
+  A: 1 << 0,
+  B: 1 << 1,
+  X: 1 << 2,
+  Y: 1 << 3,
+  LB: 1 << 4,
+  RB: 1 << 5,
+  BACK: 1 << 6,
+  START: 1 << 7,
+  LEFT_STICK: 1 << 8,
+  RIGHT_STICK: 1 << 9,
+  DPAD_UP: 1 << 10,
+  DPAD_DOWN: 1 << 11,
+  DPAD_LEFT: 1 << 12,
+  DPAD_RIGHT: 1 << 13,
+  GUIDE: 1 << 14,
+};
+
+const remoteStream = new MediaStream();
+videoElement.srcObject = remoteStream;
+videoElement.muted = false;
+
+let socket = null;
+let reconnectTimer = null;
+let peerConnection = null;
+let currentSessionId = 0;
+let pendingRemoteCandidates = [];
+let gatewayConnected = false;
+let sunshineReady = false;
+let appsLoaded = false;
+let sessionState = "idle";
+let selectedSession = null;
+let overlayTimer = null;
+let statisticsErrorReported = false;
+let previousDecodedSample = null;
+let playbackErrorReported = false;
+let controlDataChannel = null;
+let gamepadDataChannel = null;
+let gamepadInputSessionInitialized = false;
+let sessionTeardownInProgress = false;
+let launchCancellationRequested = false;
+let launchCancellationSent = false;
+let openSettingSelect = null;
+let videoModes = [];
+let codecSelectionWasIntentional = false;
+let updatingCodecOptions = false;
+let lastStatisticsConsoleTime = 0;
+let applications = [];
+let ui = null;
+let artworkLoader = null;
+let runningAppId = null;
+let hostOperationBusy = false;
+let runningAppMenuOriginId = null;
+let switchTargetApplicationId = null;
+let currentGatewayName = "Moonlight Gateway";
+let savedPreferences = preferences.load();
+let savedGateways = gatewayStore.load();
+let activeGateway = null;
+let pendingGatewayValidation = null;
+let gatewayValidationTimer = null;
+let gatewayEditorState = null;
+let gatewayContextGatewayId = null;
+let gatewayRemoveGatewayId = null;
+let gatewayConnectionToken = 0;
+let openApplicationsAfterConnection = false;
+const gatewayRuntimeStates = new Map();
+const gatewayProbeIds = new Set();
+
+function log(message) {
+  console.log(message);
+  logElement.textContent += message + "\n";
+  const lines = logElement.textContent.split("\n");
+  if (lines.length > 80) {
+    logElement.textContent = lines.slice(lines.length - 80).join("\n");
+  }
+  logElement.scrollTop = logElement.scrollHeight;
+}
+
+function errorMessage(error) {
+  if (!error) {
+    return "Unknown error";
+  }
+  return error.message || error.name || String(error);
+}
+
+function setHomeMessage(message, isError) {
+  homeMessage.textContent = message;
+  homeMessage.classList.toggle("error", Boolean(isError));
+}
+
+function showNotification(title, message, isError) {
+  if (ui) {
+    ui.showToast(title, message, Boolean(isError));
+  }
+}
+
+function gatewayDisplayName(message) {
+  if (message && typeof message.gatewayName === "string" && message.gatewayName.trim()) {
+    currentGatewayName = message.gatewayName.trim();
+  }
+  return currentGatewayName;
+}
+
+function gatewayAddress() {
+  return activeGateway ? activeGateway.host : "-";
+}
+
+function gatewayWebSocketUrl(gateway) {
+  return "ws://" + gateway.host + ":" + String(gateway.port);
+}
+
+function gatewayEntries() {
+  return savedGateways.map(function (gateway) {
+    return Object.assign({}, gateway, { state: gatewayRuntimeStates.get(gateway.id) || "Offline" });
+  });
+}
+
+function renderGateways() {
+  if (!ui) {
+    return;
+  }
+  ui.renderGateways(gatewayEntries(), activeGateway ? activeGateway.id : null);
+}
+
+function setGatewayRuntimeState(gatewayId, state) {
+  if (gatewayId) {
+    gatewayRuntimeStates.set(String(gatewayId), state);
+  }
+  renderGateways();
+}
+
+function resetGatewayData() {
+  sunshineReady = false;
+  appsLoaded = false;
+  applications = [];
+  runningAppId = null;
+  currentGatewayName = activeGateway ? activeGateway.name : "Moonlight Gateway";
+  appSelect.innerHTML = "";
+  appSelect.disabled = true;
+  const option = document.createElement("option");
+  option.textContent = "Waiting for Gateway...";
+  appSelect.appendChild(option);
+  if (artworkLoader) {
+    artworkLoader.setGatewayContext(activeGateway ? activeGateway.id : "");
+    artworkLoader.setApplications([]);
+  }
+  if (ui) {
+    ui.setActiveGateway(activeGateway);
+    ui.renderApplications([], "");
+  }
+}
+
+function refreshStoredGatewayName(message) {
+  if (!activeGateway) {
+    return;
+  }
+  const name = gatewayDisplayName(message);
+  const updated = gatewayStore.upsert(Object.assign({}, activeGateway, { name: name }));
+  if (updated) {
+    activeGateway = updated;
+    savedGateways = gatewayStore.list();
+    if (ui) {
+      ui.setActiveGateway(activeGateway);
+    }
+  }
+}
+
+function reportError(context, error) {
+  const message = context + ": " + errorMessage(error);
+  diagnosticsElement.classList.add("has-error");
+  setHomeMessage(message, true);
+  console.error(message, error);
+  log("ERROR: " + message);
+  showNotification("Connection error", message, true);
+}
+
+function reportDataChannelError(context, error) {
+  const message = context + ": " + errorMessage(error);
+  if (sessionTeardownInProgress) {
+    console.debug("Expected session teardown: " + message, error);
+    log("Expected session teardown: " + message);
+    return;
+  }
+  reportError(context, error);
+}
+
+function updatePlayAvailability() {
+  playButton.disabled = !gatewayConnected || !sunshineReady || !appsLoaded
+    || sessionState !== "idle" || hostOperationBusy;
+  renderGateways();
+}
+
+function sendGatewayMessage(message) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    throw new Error("Gateway WebSocket is not connected");
+  }
+  message.version = GATEWAY_PROTOCOL_VERSION;
+  socket.send(JSON.stringify(message));
+}
+
+function requestApplications() {
+  try {
+    sendGatewayMessage({ type: "get-apps" });
+  } catch (error) {
+    reportError("Unable to request Sunshine applications", error);
+  }
+}
+
+function completeGatewayValidation(message) {
+  if (!activeGateway) {
+    return;
+  }
+  if (!pendingGatewayValidation) {
+    refreshStoredGatewayName(message);
+    return;
+  }
+  const pending = pendingGatewayValidation;
+  const candidate = Object.assign({}, activeGateway, { name: gatewayDisplayName(message) });
+  const saved = pending.mode === "edit"
+    ? gatewayStore.replace(pending.previousId, candidate)
+    : gatewayStore.upsert(candidate);
+  if (!saved) {
+    setGatewayEditorError("A Gateway with this address is already configured.");
+    clearGatewayValidationTimeout();
+    pendingGatewayValidation = null;
+    return;
+  }
+  activeGateway = saved;
+  savedGateways = gatewayStore.list();
+  clearGatewayValidationTimeout();
+  pendingGatewayValidation = null;
+  // The candidate does not have a persistent ID until it is saved.
+  setGatewayRuntimeState(activeGateway.id, "Online");
+  closeGatewayEditor();
+  if (ui) {
+    ui.setActiveGateway(activeGateway);
+  }
+  renderGateways();
+  setHomeMessage("Gateway connected. Loading Sunshine applications...", false);
+}
+
+function gatewayValidationFailed(message) {
+  if (!pendingGatewayValidation) {
+    return false;
+  }
+  setGatewayEditorError(message);
+  restoreGatewayEditorConnectAction();
+  clearGatewayValidationTimeout();
+  pendingGatewayValidation = null;
+  gatewayConnected = false;
+  sunshineReady = false;
+  activeGateway = gatewayEditorState && gatewayEditorState.previousGateway
+    ? gatewayEditorState.previousGateway : null;
+  if (ui) {
+    ui.setActiveGateway(activeGateway);
+  }
+  renderGateways();
+  return true;
+}
+
+function clearGatewayValidationTimeout() {
+  if (gatewayValidationTimer !== null) {
+    clearTimeout(gatewayValidationTimer);
+    gatewayValidationTimer = null;
+  }
+}
+
+function startGatewayValidationTimeout(host, gatewayId) {
+  clearGatewayValidationTimeout();
+  gatewayValidationTimer = setTimeout(function () {
+    if (!pendingGatewayValidation) {
+      return;
+    }
+    closeActiveGatewayConnection();
+    setGatewayRuntimeState(gatewayId, "Offline");
+    gatewayValidationFailed("Unable to connect to Gateway at " + host + " within 10 seconds.");
+  }, 10000);
+}
+
+function connectGateway(gateway) {
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  if (!gateway) {
+    return;
+  }
+
+  const token = ++gatewayConnectionToken;
+  activeGateway = Object.assign({}, gateway);
+  resetGatewayData();
+  setGatewayRuntimeState(activeGateway.id, "Connecting");
+
+  gatewayStateElement.textContent = "Connecting";
+  setHomeMessage("Connecting to Gateway...", false);
+  try {
+    socket = new WebSocket(gatewayWebSocketUrl(activeGateway));
+  } catch (error) {
+    const gatewayId = activeGateway.id;
+    gatewayValidationFailed("Unable to connect to Gateway at " + activeGateway.host);
+    setGatewayRuntimeState(gatewayId, "Offline");
+    return;
+  }
+
+  socket.addEventListener("open", function () {
+    if (token !== gatewayConnectionToken) {
+      return;
+    }
+    gatewayConnected = true;
+    gatewayStateElement.textContent = "Connected";
+    setHomeMessage("Connected. Loading Sunshine applications...", false);
+    updatePlayAvailability();
+    requestApplications();
+    log("Gateway WebSocket connected");
+    showNotification("Gateway connected", gatewayAddress(), false);
+  });
+
+  socket.addEventListener("close", function () {
+    if (token !== gatewayConnectionToken) {
+      return;
+    }
+    socket = null;
+    gatewayConnected = false;
+    sunshineReady = false;
+    gatewayStateElement.textContent = "Disconnected";
+    sunshineStateElement.textContent = "Unavailable";
+    sessionState = "idle";
+    sessionStateElement.textContent = "Idle";
+    closePeerConnection();
+    showHome();
+    if (gatewayValidationFailed("Unable to connect to Gateway at " + gatewayAddress())) {
+      return;
+    }
+    setGatewayRuntimeState(activeGateway ? activeGateway.id : "", "Offline");
+    setHomeMessage("Gateway disconnected. Reconnecting...", true);
+    updatePlayAvailability();
+    log("Gateway WebSocket disconnected");
+    showNotification("Gateway disconnected", "Reconnecting...", true);
+    if (activeGateway) {
+      reconnectTimer = setTimeout(function () { connectGateway(activeGateway); }, 2000);
+    }
+  });
+
+  socket.addEventListener("error", function (event) {
+    if (token === gatewayConnectionToken && !pendingGatewayValidation) {
+      log("Gateway WebSocket error: " + errorMessage(event.error || event));
+    }
+  });
+
+  socket.addEventListener("message", function (event) {
+    if (token === gatewayConnectionToken) {
+      handleGatewayMessage(event.data);
+    }
+  });
+}
+
+function probeGateway(gateway) {
+  if (!gateway || (activeGateway && activeGateway.id === gateway.id) || gatewayProbeIds.has(gateway.id)) {
+    return;
+  }
+  gatewayProbeIds.add(gateway.id);
+  setGatewayRuntimeState(gateway.id, "Connecting");
+  let resolved = false;
+  let probe = null;
+  let timeout = null;
+  const complete = function (state) {
+    if (resolved) {
+      return;
+    }
+    resolved = true;
+    gatewayProbeIds.delete(gateway.id);
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    setGatewayRuntimeState(gateway.id, state);
+    if (probe && probe.readyState === WebSocket.OPEN) {
+      probe.close();
+    }
+  };
+  try {
+    probe = new WebSocket(gatewayWebSocketUrl(gateway));
+    timeout = setTimeout(function () { complete("Offline"); }, 2500);
+    probe.addEventListener("message", function (event) {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.version === GATEWAY_PROTOCOL_VERSION && message.type === "gateway-status") {
+          complete("Online");
+        }
+      } catch (error) {
+        complete("Offline");
+      }
+    });
+    probe.addEventListener("error", function () { complete("Offline"); });
+    probe.addEventListener("close", function () { complete("Offline"); });
+  } catch (error) {
+    complete("Offline");
+  }
+}
+
+function probeSavedGateways() {
+  savedGateways.forEach(probeGateway);
+}
+
+async function handleGatewayMessage(text) {
+  let message;
+  try {
+    message = JSON.parse(text);
+  } catch (error) {
+    reportError("Invalid Gateway JSON", error);
+    return;
+  }
+  if (message.version !== GATEWAY_PROTOCOL_VERSION || typeof message.type !== "string") {
+    reportError("Unsupported Gateway message", new Error("Protocol version 1 is required"));
+    return;
+  }
+
+  if (message.type === "gateway-status") {
+    handleGatewayStatus(message);
+  } else if (message.type === "capabilities") {
+    applyCapabilities(message);
+  } else if (message.type === "apps") {
+    applyApplications(message.apps);
+  } else if (message.type === "app-artwork") {
+    if (artworkLoader) {
+      artworkLoader.handleResponse(message);
+    }
+  } else if (message.type === "session-status") {
+    handleSessionStatus(message);
+  } else if (message.type === "host-session-status") {
+    handleHostSessionStatus(message);
+  } else if (message.type === "offer") {
+    await handleOffer(message);
+  } else if (message.type === "candidate") {
+    await handleRemoteCandidate(message);
+  } else if (message.type === "error") {
+    handleGatewayError(message);
+  } else {
+    log("Ignored Gateway message: " + message.type);
+  }
+}
+
+function handleGatewayStatus(message) {
+  sunshineReady = Boolean(message.sunshineDetected && message.sunshinePaired);
+  if (!message.sunshineDetected) {
+    sunshineStateElement.textContent = "Not detected";
+  } else if (!message.sunshinePaired) {
+    sunshineStateElement.textContent = "Connected / Not paired";
+  } else {
+    sunshineStateElement.textContent = "Connected / Paired";
+  }
+  if (ui) {
+    ui.setSunshineState(sunshineStateElement.textContent);
+  }
+  if (Object.prototype.hasOwnProperty.call(message, "runningAppId")) {
+    setRunningApplication(message.runningAppId);
+  }
+  if (activeGateway) {
+    setGatewayRuntimeState(activeGateway.id, "Online");
+    completeGatewayValidation(message);
+    if (ui) {
+      ui.setActiveGateway(activeGateway);
+    }
+  }
+  updatePlayAvailability();
+}
+
+function replaceSelectOptions(select, values, formatter) {
+  const previousValue = select.value;
+  select.innerHTML = "";
+  values.forEach(function (value) {
+    const option = document.createElement("option");
+    option.value = formatter.value(value);
+    option.textContent = formatter.label(value);
+    select.appendChild(option);
+  });
+  const previousStillExists = Array.prototype.some.call(select.options, function (option) {
+    return option.value === previousValue;
+  });
+  if (previousStillExists) {
+    select.value = previousValue;
+  }
+}
+
+function selectHasValue(select, value) {
+  return Array.prototype.some.call(select.options, function (option) {
+    return option.value === String(value);
+  });
+}
+
+function selectSavedOrDefault(select, savedValue, defaultValue) {
+  const values = Array.prototype.map.call(select.options, function (option) { return option.value; });
+  const resolvedValue = ClientPreferences.resolveSupported(savedValue, values, defaultValue);
+  if (resolvedValue !== null && typeof resolvedValue !== "undefined" && selectHasValue(select, resolvedValue)) {
+    select.value = String(resolvedValue);
+    return true;
+  }
+  if (selectHasValue(select, defaultValue)) {
+    select.value = String(defaultValue);
+  } else if (select.options.length > 0) {
+    select.selectedIndex = 0;
+  }
+  return false;
+}
+
+function currentPreferenceValues() {
+  return {
+    resolution: resolutionSelect.value || null,
+    codec: codecSelect.value || null,
+    hdr: hdrSelect.value === "true",
+    bitrateKbps: Number.isInteger(Number(bitrateSelect.value))
+      ? Number(bitrateSelect.value) : null,
+  };
+}
+
+function persistCurrentPreferences() {
+  savedPreferences = preferences.replace(currentPreferenceValues());
+}
+
+function applyCapabilities(message) {
+  videoModes = Array.isArray(message.videoModes) ? message.videoModes : [];
+  if (videoModes.length > 0) {
+    replaceSelectOptions(resolutionSelect, videoModes, {
+      value: function (mode) {
+        return String(mode.width) + "x" + String(mode.height);
+      },
+      label: function (mode) {
+        const base = String(mode.width) + " × " + String(mode.height);
+        if (mode.experimental) {
+          return base + " — Experimental";
+        }
+        return mode.width === 3840 && mode.height === 2160 ? base + " — 4K" : base;
+      },
+    });
+  }
+  if (Array.isArray(message.bitratesKbps) && message.bitratesKbps.length > 0) {
+    replaceSelectOptions(bitrateSelect, message.bitratesKbps, {
+      value: function (bitrate) { return String(bitrate); },
+      label: function (bitrate) { return String(bitrate / 1000) + " Mbps"; },
+    });
+  }
+  selectSavedOrDefault(resolutionSelect, savedPreferences.resolution, "1280x720");
+  codecSelectionWasIntentional = Boolean(savedPreferences.codec);
+  applySelectedVideoMode(savedPreferences);
+  persistCurrentPreferences();
+}
+
+function selectedVideoMode() {
+  return videoModes.find(function (mode) {
+    return String(mode.width) + "x" + String(mode.height) === resolutionSelect.value;
+  }) || null;
+}
+
+function codecDisplayName(codec) {
+  return codec === "hevc" ? "HEVC (H.265)" : "H.264";
+}
+
+function updateHdrOptions(mode, preferredHdr) {
+  const hdrWasEnabled = typeof preferredHdr === "boolean"
+    ? preferredHdr
+    : hdrSelect.value === "true";
+  const supportsHdr = Boolean(mode && mode.hdrSupported);
+  hdrSelect.innerHTML = "";
+  const offOption = document.createElement("option");
+  offOption.value = "false";
+  offOption.textContent = "Off";
+  hdrSelect.appendChild(offOption);
+  if (supportsHdr) {
+    const onOption = document.createElement("option");
+    onOption.value = "true";
+    onOption.textContent = mode.hdrExperimental ? "On — Experimental" : "On";
+    hdrSelect.appendChild(onOption);
+  }
+  hdrSelect.value = hdrWasEnabled && supportsHdr && codecSelect.value === "hevc"
+    ? "true"
+    : "false";
+}
+
+function applySelectedVideoMode(preferencesToRestore) {
+  const mode = selectedVideoMode();
+  if (!mode || !Array.isArray(mode.codecs) || mode.codecs.length === 0) {
+    return;
+  }
+  const previousCodec = preferencesToRestore && preferencesToRestore.codec
+    ? preferencesToRestore.codec
+    : codecSelect.value;
+  const keepIntentionalCodec = codecSelectionWasIntentional
+    && mode.codecs.indexOf(previousCodec) >= 0;
+  updatingCodecOptions = true;
+  replaceSelectOptions(codecSelect, mode.codecs, {
+    value: function (codec) { return codec; },
+    label: codecDisplayName,
+  });
+  codecSelect.value = keepIntentionalCodec ? previousCodec : mode.defaultCodec;
+  updatingCodecOptions = false;
+  updateHdrOptions(mode, preferencesToRestore ? preferencesToRestore.hdr : undefined);
+  selectSavedOrDefault(
+    bitrateSelect,
+    preferencesToRestore ? preferencesToRestore.bitrateKbps : null,
+    String(mode.defaultBitrateKbps)
+  );
+  if (mode.experimental) {
+    setHomeMessage("2560 × 1440 is experimental on Samsung Tizen.", false);
+  } else if (appsLoaded) {
+    setHomeMessage("Choose video settings in Settings, then launch an application.", false);
+  }
+}
+
+function applyApplications(nextApplications) {
+  const incoming = Array.isArray(nextApplications) ? nextApplications : [];
+  const hasRunningState = incoming.some(function (application) {
+    return Object.prototype.hasOwnProperty.call(application, "running");
+  });
+  if (hasRunningState) {
+    const running = incoming.find(function (application) { return application.running; });
+    runningAppId = running ? String(running.id) : null;
+  }
+  applications = incoming.map(function (application) {
+    return Object.assign({}, application, {
+      running: String(application.id) === String(runningAppId || ""),
+    });
+  });
+  appSelect.innerHTML = "";
+  if (applications.length === 0) {
+    appsLoaded = false;
+    appSelect.disabled = true;
+    const option = document.createElement("option");
+    option.textContent = "No Sunshine applications";
+    appSelect.appendChild(option);
+    setHomeMessage("Sunshine returned no applications.", true);
+    updatePlayAvailability();
+    if (ui) {
+      ui.renderApplications([], "");
+    }
+    return;
+  }
+
+  applications.forEach(function (application) {
+    const option = document.createElement("option");
+    option.value = String(application.id);
+    option.textContent = String(application.title);
+    appSelect.appendChild(option);
+  });
+  const desktopIndex = applications.findIndex(function (application) {
+    return String(application.title).toLowerCase() === "desktop";
+  });
+  appSelect.selectedIndex = desktopIndex >= 0 ? desktopIndex : 0;
+  appsLoaded = true;
+  appSelect.disabled = false;
+  setHomeMessage("Gateway ready. Select it to browse Sunshine applications.", false);
+  updatePlayAvailability();
+  if (ui) {
+    ui.renderApplications(applications, appSelect.value);
+    ui.setRunningApplication(runningAppId);
+  }
+  if (artworkLoader) {
+    artworkLoader.setApplications(applications);
+  }
+  if (openApplicationsAfterConnection && ui) {
+    openApplicationsAfterConnection = false;
+    ui.showApplications();
+  }
+}
+
+function setRunningApplication(appId) {
+  runningAppId = typeof appId === "string" && appId ? appId : null;
+  applications.forEach(function (application) {
+    application.running = String(application.id) === String(runningAppId || "");
+  });
+  if (ui) {
+    ui.setRunningApplication(runningAppId);
+  }
+}
+
+function handleGatewayError(message) {
+  const detail = message.message || "Gateway request failed";
+  reportError(message.requestType || "Gateway", new Error(detail));
+  if (sessionState !== "streaming") {
+    sessionState = "idle";
+    sessionStateElement.textContent = "Idle";
+    if (!launchingScreen.hidden) {
+      showHome("applications");
+    }
+    updatePlayAvailability();
+  }
+}
+
+function launchingStep(state) {
+  const steps = {
+    starting: { stage: 1, text: "Preparing your session…" },
+    "starting-webrtc": { stage: 2, text: "Preparing WebRTC connection…" },
+    "connecting-sunshine": { stage: 3, text: "Connecting to Sunshine…" },
+    "starting-moonlight": { stage: 4, text: "Starting Moonlight…" },
+  };
+  return steps[state] || { stage: 1, text: "Preparing your session…" };
+}
+
+function updateLaunchingScreen(state) {
+  if (launchingScreen.hidden) {
+    return;
+  }
+  if (launchCancellationRequested) {
+    launchingStatusElement.textContent = "Cancelling launch…";
+    return;
+  }
+  const step = launchingStep(state);
+  launchingStatusElement.textContent = step.text;
+  launchingProgressElement.dataset.stage = String(step.stage);
+}
+
+function showLaunching() {
+  homeScreen.hidden = true;
+  streamingScreen.hidden = true;
+  videoElement.hidden = true;
+  launchingAppElement.textContent = selectedSession ? selectedSession.appTitle : "Application";
+  launchingScreen.hidden = false;
+  updateLaunchingScreen("starting");
+}
+
+function requestLaunchCancellation() {
+  if (!currentSessionId || launchCancellationSent) {
+    return;
+  }
+  try {
+    launchCancellationSent = true;
+    sessionTeardownInProgress = true;
+    sessionState = "stopping";
+    sessionStateElement.textContent = "Stopping";
+    sendGatewayMessage({ type: "stop-session" });
+  } catch (error) {
+    launchCancellationSent = false;
+    reportError("Unable to cancel session launch", error);
+  }
+}
+
+function cancelLaunchingSession() {
+  if (launchingScreen.hidden) {
+    return false;
+  }
+  launchCancellationRequested = true;
+  updateLaunchingScreen();
+  requestLaunchCancellation();
+  return true;
+}
+
+function readableState(state) {
+  return String(state || "unknown").replace(/-/g, " ");
+}
+
+function handleSessionStatus(message) {
+  sessionState = message.state;
+  sessionStateElement.textContent = readableState(message.state);
+  if (typeof message.sessionId === "number") {
+    currentSessionId = message.sessionId;
+  }
+  if (launchCancellationRequested) {
+    requestLaunchCancellation();
+  }
+  if (message.video) {
+    selectedSession = {
+      appTitle: selectedSession ? selectedSession.appTitle : "Desktop",
+      width: message.video.width,
+      height: message.video.height,
+      fps: message.video.fps,
+      codec: message.video.codec,
+      bitrateKbps: message.video.bitrateKbps,
+      hdr: message.video.hdr,
+    };
+    updateStreamOverlay();
+  }
+
+  overlay.connection.textContent = readableState(message.state);
+  if (message.state === "streaming") {
+    if (launchCancellationRequested) {
+      requestLaunchCancellation();
+      updateLaunchingScreen();
+      updatePlayAvailability();
+      log("Session status: streaming (cancelling)");
+      return;
+    }
+    launchCancellationRequested = false;
+    launchCancellationSent = false;
+    hostOperationBusy = false;
+    sessionTeardownInProgress = false;
+    showStreaming();
+    resumeGamepadInput();
+    setHomeMessage("Streaming", false);
+  } else if (message.state === "idle") {
+    launchCancellationRequested = false;
+    launchCancellationSent = false;
+    closePeerConnection();
+    currentSessionId = 0;
+    showHome("applications");
+    setHomeMessage("Stream disconnected. Running applications remain available.", false);
+    showNotification("Streaming disconnected", "Choose an application to resume or launch.", false);
+    requestApplications();
+  } else if (message.state === "error") {
+    hostOperationBusy = false;
+    launchCancellationRequested = false;
+    launchCancellationSent = false;
+    if (!launchingScreen.hidden) {
+      showHome("applications");
+    }
+    setHomeMessage(message.message || "Session failed", true);
+    if (currentSessionId) {
+      try {
+        sendGatewayMessage({ type: "stop-session" });
+      } catch (error) {
+        reportError("Unable to clean up failed session", error);
+      }
+    }
+  } else {
+    if (message.state === "starting" || message.state === "starting-webrtc") {
+      hostOperationBusy = false;
+    }
+    setHomeMessage("Session: " + readableState(message.state), false);
+    updateLaunchingScreen(message.state);
+  }
+  updatePlayAvailability();
+  log("Session status: " + message.state);
+}
+
+function handleHostSessionStatus(message) {
+  const state = String(message.state || "unknown");
+  if (state === "stopping") {
+    hostOperationBusy = true;
+    setHomeMessage("Stopping running application...", false);
+  } else if (state === "switching") {
+    hostOperationBusy = true;
+    setHomeMessage("Stopping running application before launch...", false);
+  } else if (state === "resuming" || state === "starting") {
+    hostOperationBusy = true;
+    setHomeMessage(state === "resuming" ? "Resuming application..." : "Starting application...", false);
+  } else if (state === "stopped") {
+    hostOperationBusy = false;
+    setRunningApplication(null);
+    setHomeMessage("Running application stopped.", false);
+    showNotification("Session stopped", "Sunshine application closed.", false);
+    requestApplications();
+  } else if (state === "failed") {
+    hostOperationBusy = false;
+    const detail = message.message || "Sunshine did not complete the requested operation";
+    setHomeMessage(detail, true);
+    showNotification("Session operation failed", detail, true);
+    requestApplications();
+  }
+  updatePlayAvailability();
+  log("Host session status: " + state);
+}
+
+function selectedSettings() {
+  const dimensions = resolutionSelect.value.split("x");
+  return {
+    appTitle: appSelect.options[appSelect.selectedIndex].textContent,
+    width: Number(dimensions[0]),
+    height: Number(dimensions[1]),
+    fps: 60,
+    codec: codecSelect.value,
+    bitrateKbps: Number(bitrateSelect.value),
+    hdr: hdrSelect.value === "true",
+  };
+}
+
+function startSelectedSession() {
+  if (playButton.disabled) {
+    return;
+  }
+  selectedSession = selectedSettings();
+  sessionTeardownInProgress = false;
+  launchCancellationRequested = false;
+  launchCancellationSent = false;
+  sessionState = "starting";
+  updatePlayAvailability();
+  updateStreamOverlay();
+  showLaunching();
+  try {
+    sendGatewayMessage({
+      type: "start-session",
+      appId: appSelect.value,
+      video: {
+        width: selectedSession.width,
+        height: selectedSession.height,
+        fps: selectedSession.fps,
+        codec: selectedSession.codec,
+        bitrateKbps: selectedSession.bitrateKbps,
+        hdr: selectedSession.hdr,
+      },
+      audio: { channels: 2 },
+    });
+    setHomeMessage("Starting " + selectedSession.appTitle + "...", false);
+  } catch (error) {
+    sessionState = "idle";
+    reportError("Unable to start session", error);
+    updatePlayAvailability();
+  }
+}
+
+function stopCurrentSession() {
+  hideStreamMenu();
+  if (!currentSessionId) {
+    showHome();
+    return;
+  }
+  try {
+    sessionTeardownInProgress = true;
+    sendGatewayMessage({ type: "stop-session" });
+    sessionState = "stopping";
+    overlay.connection.textContent = "Stopping";
+    sessionStateElement.textContent = "Stopping";
+  } catch (error) {
+    reportError("Unable to stop session", error);
+  }
+}
+
+function createPeerConnection(sessionId) {
+  closePeerConnection();
+  sessionTeardownInProgress = false;
+  currentSessionId = sessionId;
+  pendingRemoteCandidates = [];
+  previousDecodedSample = null;
+  statisticsErrorReported = false;
+
+  try {
+    peerConnection = new RTCPeerConnection({ iceServers: [] });
+  } catch (error) {
+    reportError("RTCPeerConnection creation failed", error);
+    throw error;
+  }
+
+  peerConnection.ondatachannel = function (event) {
+    const channel = event.channel;
+    if (channel.label === "control") {
+      configureControlDataChannel(channel);
+    } else if (channel.label === "gamepad") {
+      configureGamepadDataChannel(channel);
+    } else {
+      log("Ignoring unexpected DataChannel: " + channel.label);
+      channel.close();
+    }
+  };
+
+  peerConnection.onicecandidate = function (event) {
+    if (!event.candidate || !currentSessionId) {
+      return;
+    }
+    try {
+      sendGatewayMessage({
+        type: "candidate",
+        sessionId: currentSessionId,
+        candidate: event.candidate.candidate,
+        mid: event.candidate.sdpMid,
+      });
+    } catch (error) {
+      reportError("Sending ICE candidate failed", error);
+    }
+  };
+
+  peerConnection.onconnectionstatechange = function () {
+    if (!peerConnection) {
+      return;
+    }
+    const state = peerConnection.connectionState;
+    connectionStateElement.textContent = state;
+    overlay.connection.textContent = state;
+    if (ui) {
+      ui.setWebRtcState(readableState(state));
+    }
+    log("PeerConnection state: " + state);
+    if (state === "disconnected" || state === "failed" || state === "closed") {
+      suspendGamepadInput(!sessionTeardownInProgress);
+    }
+  };
+
+  peerConnection.oniceconnectionstatechange = function () {
+    if (!peerConnection) {
+      return;
+    }
+    iceStateElement.textContent = peerConnection.iceConnectionState;
+    log("ICE state: " + peerConnection.iceConnectionState);
+  };
+
+  peerConnection.ontrack = function (event) {
+    event.track.enabled = !document.hidden;
+    const alreadyAdded = remoteStream.getTracks().some(function (track) {
+      return track.id === event.track.id;
+    });
+    if (!alreadyAdded) {
+      remoteStream.addTrack(event.track);
+    }
+    updateTrackCounts();
+    event.track.addEventListener("ended", function () {
+      const currentTrack = remoteStream.getTrackById(event.track.id);
+      if (currentTrack) {
+        remoteStream.removeTrack(currentTrack);
+        updateTrackCounts();
+      }
+    });
+    startPlayback();
+  };
+}
+
+async function applyRemoteCandidate(candidate) {
+  if (!peerConnection) {
+    return false;
+  }
+  try {
+    await peerConnection.addIceCandidate(candidate);
+    return true;
+  } catch (error) {
+    reportError("addIceCandidate failed", error);
+    return false;
+  }
+}
+
+async function handleRemoteCandidate(message) {
+  if (!peerConnection || message.sessionId !== currentSessionId) {
+    return;
+  }
+  const candidate = {
+    candidate: message.candidate,
+    sdpMid: message.mid,
+  };
+  if (!peerConnection.remoteDescription) {
+    pendingRemoteCandidates.push(candidate);
+    return;
+  }
+  await applyRemoteCandidate(candidate);
+}
+
+async function handleOffer(message) {
+  if (typeof message.sessionId !== "number" || typeof message.sdp !== "string") {
+    reportError("Invalid SDP offer", new Error("Missing sessionId or SDP"));
+    return;
+  }
+  if (!peerConnection || currentSessionId !== message.sessionId) {
+    createPeerConnection(message.sessionId);
+  }
+
+  try {
+    await peerConnection.setRemoteDescription({ type: "offer", sdp: message.sdp });
+    while (pendingRemoteCandidates.length > 0) {
+      await applyRemoteCandidate(pendingRemoteCandidates.shift());
+    }
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    sendGatewayMessage({
+      type: "answer",
+      sessionId: message.sessionId,
+      sdp: peerConnection.localDescription.sdp,
+    });
+    log("WebRTC answer sent for session " + String(message.sessionId));
+  } catch (error) {
+    reportError("WebRTC offer handling failed", error);
+  }
+}
+
+function closePeerConnection() {
+  sessionTeardownInProgress = true;
+  suspendGamepadInput(false);
+  gamepadInputSessionInitialized = false;
+  controlDataChannel = null;
+  gamepadDataChannel = null;
+  updateDataChannelState(gamepadDiagnostics.controlChannel, null);
+  updateDataChannelState(gamepadDiagnostics.inputChannel, null);
+  if (peerConnection) {
+    peerConnection.ondatachannel = null;
+    peerConnection.ontrack = null;
+    peerConnection.onicecandidate = null;
+    peerConnection.onconnectionstatechange = null;
+    peerConnection.oniceconnectionstatechange = null;
+    peerConnection.close();
+    peerConnection = null;
+  }
+  remoteStream.getTracks().forEach(function (track) {
+    remoteStream.removeTrack(track);
+    track.stop();
+  });
+  updateTrackCounts();
+  videoElement.hidden = true;
+  playbackPromptElement.hidden = true;
+  connectionStateElement.textContent = "closed";
+  iceStateElement.textContent = "closed";
+}
+
+async function startPlayback() {
+  videoElement.muted = false;
+  try {
+    await videoElement.play();
+    playbackPromptElement.hidden = true;
+  } catch (error) {
+    playbackPromptElement.hidden = false;
+    if (!playbackErrorReported) {
+      playbackErrorReported = true;
+      log("Audio playback requires pressing OK");
+    }
+  }
+}
+
+function updateTrackCounts() {
+  trackCounts.remote.textContent = remoteStream.getTracks().length;
+  trackCounts.video.textContent = remoteStream.getVideoTracks().length;
+  trackCounts.audio.textContent = remoteStream.getAudioTracks().length;
+}
+
+function updateStreamOverlay() {
+  if (!selectedSession) {
+    return;
+  }
+  overlay.app.textContent = selectedSession.appTitle;
+  overlay.resolution.textContent = String(selectedSession.width) + " × "
+    + String(selectedSession.height);
+  overlay.fps.textContent = String(selectedSession.fps);
+  overlay.codec.textContent = codecDisplayName(selectedSession.codec);
+  overlay.bitrate.textContent = String(selectedSession.bitrateKbps / 1000) + " Mbps";
+  overlay.hdr.textContent = selectedSession.hdr ? "On" : "Off";
+}
+
+function showOverlayTemporarily() {
+  if (overlayTimer !== null) {
+    clearTimeout(overlayTimer);
+  }
+  streamOverlay.classList.remove("faded");
+  overlayTimer = setTimeout(function () {
+    if (streamMenu.hidden) {
+      streamOverlay.classList.add("faded");
+    }
+  }, 5000);
+}
+
+function showStreaming() {
+  homeScreen.hidden = true;
+  launchingScreen.hidden = true;
+  streamingScreen.hidden = false;
+  videoElement.hidden = false;
+  updateStreamOverlay();
+  showOverlayTemporarily();
+  startPlayback();
+}
+
+function showHome(view) {
+  homeScreen.hidden = false;
+  launchingScreen.hidden = true;
+  streamingScreen.hidden = true;
+  streamMenu.hidden = true;
+  diagnosticsElement.hidden = true;
+  diagnosticsButton.textContent = "Show statistics";
+  updatePlayAvailability();
+  if (ui) {
+    if (view === "applications") {
+      ui.showApplications();
+    } else {
+      ui.showGateway();
+      probeSavedGateways();
+    }
+  }
+}
+
+function showStreamMenu() {
+  streamMenu.hidden = false;
+  streamOverlay.classList.remove("faded");
+  gamepadInputManager.pauseForUi();
+  continueButton.focus();
+}
+
+function hideStreamMenu() {
+  streamMenu.hidden = true;
+  showOverlayTemporarily();
+  if (sessionState === "streaming") {
+    resumeGamepadInput();
+  }
+}
+
+function handleGamepadStopShortcut() {
+  if (sessionState === "streaming") {
+    stopCurrentSession();
+  }
+}
+
+function handleMouseModeChanged(record, active) {
+  const controller = record.moonlightSlot === null
+    ? record.controllerId : record.moonlightSlot + 1;
+  showNotification(
+    active ? "Mouse emulation enabled" : "Mouse emulation disabled",
+    "Controller " + String(controller),
+    false
+  );
+}
+
+function toggleDiagnostics() {
+  diagnosticsElement.hidden = !diagnosticsElement.hidden;
+  diagnosticsButton.textContent = diagnosticsElement.hidden
+    ? "Show statistics"
+    : "Hide statistics";
+}
+
+function focusableElements(container) {
+  return Array.prototype.filter.call(
+    container.querySelectorAll(".focusable"),
+    function (element) { return !element.disabled && !element.hidden; }
+  );
+}
+
+function focusFirstHomeControl() {
+  if (!homeScreen.hidden && ui) {
+    ui.focusDefault(ui.currentView);
+  }
+}
+
+function closeActiveGatewayConnection() {
+  gatewayConnectionToken += 1;
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (socket) {
+    try {
+      socket.close();
+    } catch (error) {
+      log("Gateway close unavailable: " + errorMessage(error));
+    }
+  }
+  socket = null;
+  gatewayConnected = false;
+}
+
+function activateGateway(gatewayId) {
+  const gateway = gatewayStore.find(gatewayId);
+  if (!gateway || sessionState !== "idle") {
+    return;
+  }
+  if (activeGateway && activeGateway.id === gateway.id && gatewayConnected && appsLoaded) {
+    ui.showApplications();
+    return;
+  }
+  closeActiveGatewayConnection();
+  activeGateway = gateway;
+  openApplicationsAfterConnection = true;
+  connectGateway(gateway);
+}
+
+function gatewayEditorIsOpen() {
+  return !gatewayEditorDialog.hidden;
+}
+
+function gatewayContextMenuIsOpen() {
+  return !gatewayContextMenu.hidden;
+}
+
+function gatewayRemoveDialogIsOpen() {
+  return !gatewayRemoveDialog.hidden;
+}
+
+function octetsForHost(host) {
+  return GatewayIpv4.parse(host);
+}
+
+function updateGatewayEditor() {
+  if (!gatewayEditorState) {
+    return;
+  }
+  gatewayOctetButtons.forEach(function (button, index) {
+    button.textContent = String(gatewayEditorState.octets[index]);
+  });
+}
+
+function setGatewayEditorError(message) {
+  gatewayEditorError.textContent = message || "";
+  gatewayEditorError.hidden = !message;
+}
+
+function openGatewayEditor(mode, gatewayId) {
+  const previousGateway = mode === "edit" ? gatewayStore.find(gatewayId) : null;
+  gatewayEditorState = {
+    mode: mode,
+    previousId: previousGateway ? previousGateway.id : null,
+    previousGateway: previousGateway,
+    octets: octetsForHost(previousGateway ? previousGateway.host : ""),
+    selectedOctet: 0,
+  };
+  gatewayEditorHeading.textContent = mode === "edit" ? "Edit Gateway" : "Add Gateway";
+  gatewayEditorConnectButton.textContent = mode === "edit" ? "Save / Connect" : "Connect";
+  setGatewayEditorError("");
+  updateGatewayEditor();
+  gatewayEditorDialog.hidden = false;
+  gatewayOctetButtons[0].focus();
+}
+
+function closeGatewayEditor() {
+  if (!gatewayEditorIsOpen()) {
+    return false;
+  }
+  gatewayEditorDialog.hidden = true;
+  const previousId = gatewayEditorState && gatewayEditorState.previousId;
+  gatewayEditorState = null;
+  clearGatewayValidationTimeout();
+  pendingGatewayValidation = null;
+  if (ui && previousId) {
+    const card = ui.gatewayCard(previousId);
+    if (card) {
+      card.focus();
+    }
+  }
+  return true;
+}
+
+function selectedGatewayOctetIndex() {
+  const active = document.activeElement;
+  const index = gatewayOctetButtons.indexOf(active);
+  return index >= 0 ? index : (gatewayEditorState ? gatewayEditorState.selectedOctet : 0);
+}
+
+function focusGatewayOctet(index) {
+  const normalized = Math.max(0, Math.min(gatewayOctetButtons.length - 1, index));
+  gatewayEditorState.selectedOctet = normalized;
+  gatewayOctetButtons[normalized].focus();
+}
+
+function changeGatewayOctet(direction) {
+  const index = selectedGatewayOctetIndex();
+  const value = gatewayEditorState.octets[index];
+  gatewayEditorState.octets[index] = GatewayIpv4.adjust(value, direction);
+  updateGatewayEditor();
+  focusGatewayOctet(index);
+}
+
+function navigateGatewayEditor(direction) {
+  if (!gatewayEditorState) {
+    return false;
+  }
+  const active = document.activeElement;
+  const octetIndex = gatewayOctetButtons.indexOf(active);
+  if (octetIndex >= 0) {
+    gatewayEditorState.selectedOctet = octetIndex;
+    if (direction === "left") {
+      if (octetIndex > 0) { focusGatewayOctet(octetIndex - 1); return true; }
+      return false;
+    }
+    if (direction === "right") {
+      if (octetIndex + 1 < gatewayOctetButtons.length) { focusGatewayOctet(octetIndex + 1); return true; }
+      return false;
+    }
+    if (direction === "up") { changeGatewayOctet(1); return true; }
+    if (direction === "down") { gatewayEditorCancelButton.focus(); return true; }
+  }
+  if (active === gatewayEditorCancelButton || active === gatewayEditorConnectButton) {
+    if (direction === "left" || direction === "right") {
+      (active === gatewayEditorCancelButton ? gatewayEditorConnectButton : gatewayEditorCancelButton).focus();
+      return true;
+    }
+    if (direction === "up") {
+      focusGatewayOctet(gatewayEditorState.selectedOctet);
+      return true;
+    }
+  }
+  return false;
+}
+
+function connectGatewayFromEditor() {
+  if (!gatewayEditorState || pendingGatewayValidation) {
+    return;
+  }
+  const host = GatewayIpv4.format(gatewayEditorState.octets);
+  const candidate = {
+    host: host,
+    port: GatewayStore.DEFAULT_PORT,
+    name: gatewayEditorState.previousGateway ? gatewayEditorState.previousGateway.name : "Gateway " + host,
+  };
+  pendingGatewayValidation = {
+    mode: gatewayEditorState.mode,
+    previousId: gatewayEditorState.previousId,
+  };
+  setGatewayEditorError("");
+  gatewayEditorConnectButton.disabled = true;
+  gatewayEditorConnectButton.textContent = "Connecting...";
+  closeActiveGatewayConnection();
+  openApplicationsAfterConnection = false;
+  startGatewayValidationTimeout(host, host + ":" + String(candidate.port));
+  connectGateway(candidate);
+}
+
+function restoreGatewayEditorConnectAction() {
+  if (!gatewayEditorState) {
+    return;
+  }
+  gatewayEditorConnectButton.disabled = false;
+  gatewayEditorConnectButton.textContent = gatewayEditorState.mode === "edit" ? "Save / Connect" : "Connect";
+}
+
+function closeGatewayContextMenu() {
+  if (!gatewayContextMenuIsOpen()) {
+    return false;
+  }
+  gatewayContextMenu.hidden = true;
+  const gatewayId = gatewayContextGatewayId;
+  gatewayContextGatewayId = null;
+  if (ui && gatewayId) {
+    const card = ui.gatewayCard(gatewayId);
+    if (card) { card.focus(); }
+  }
+  return true;
+}
+
+function openGatewayContextMenu() {
+  if (!ui || ui.currentView !== "gateway" || sessionState !== "idle") {
+    return false;
+  }
+  const active = document.activeElement;
+  const gatewayId = active && active.dataset ? active.dataset.gatewayId : null;
+  const gateway = gatewayStore.find(gatewayId);
+  if (!gateway) {
+    return false;
+  }
+  gatewayContextGatewayId = gateway.id;
+  gatewayContextHeading.textContent = gateway.name;
+  gatewayContextMenu.hidden = false;
+  gatewayEditButton.focus();
+  return true;
+}
+
+function openGatewayRemoveDialog() {
+  const gateway = gatewayStore.find(gatewayContextGatewayId);
+  if (!gateway) {
+    return false;
+  }
+  gatewayContextMenu.hidden = true;
+  gatewayRemoveGatewayId = gateway.id;
+  gatewayRemoveMessage.textContent = "Remove " + gateway.name + "?";
+  gatewayRemoveDialog.hidden = false;
+  gatewayRemoveCancelButton.focus();
+  return true;
+}
+
+function closeGatewayRemoveDialog() {
+  if (!gatewayRemoveDialogIsOpen()) {
+    return false;
+  }
+  gatewayRemoveDialog.hidden = true;
+  const gatewayId = gatewayRemoveGatewayId;
+  gatewayRemoveGatewayId = null;
+  if (ui && gatewayId) {
+    const card = ui.gatewayCard(gatewayId);
+    if (card) { card.focus(); }
+  }
+  return true;
+}
+
+function removeGateway() {
+  const gatewayId = gatewayRemoveGatewayId;
+  if (!gatewayId || sessionState !== "idle") {
+    return;
+  }
+  if (activeGateway && activeGateway.id === gatewayId) {
+    closeActiveGatewayConnection();
+    activeGateway = null;
+    resetGatewayData();
+  }
+  gatewayStore.remove(gatewayId);
+  savedGateways = gatewayStore.list();
+  gatewayRuntimeStates.delete(gatewayId);
+  gatewayRemoveDialog.hidden = true;
+  gatewayRemoveGatewayId = null;
+  renderGateways();
+  setHomeMessage(savedGateways.length ? "Gateway removed." : "Add a Gateway to get started.", false);
+  probeSavedGateways();
+}
+
+function applicationById(applicationId) {
+  return applications.find(function (application) {
+    return String(application.id) === String(applicationId);
+  }) || null;
+}
+
+function applicationSessionRequest(type, applicationId) {
+  const settings = selectedSettings();
+  return {
+    type: type,
+    appId: String(applicationId),
+    video: {
+      width: settings.width,
+      height: settings.height,
+      fps: settings.fps,
+      codec: settings.codec,
+      bitrateKbps: settings.bitrateKbps,
+      hdr: settings.hdr,
+    },
+    audio: { channels: 2 },
+  };
+}
+
+function runningAppMenuIsOpen() {
+  return !runningAppMenu.hidden;
+}
+
+function switchAppDialogIsOpen() {
+  return !switchAppDialog.hidden;
+}
+
+function closeRunningAppMenu() {
+  if (!runningAppMenuIsOpen()) {
+    return false;
+  }
+  runningAppMenu.hidden = true;
+  const origin = runningAppMenuOriginId;
+  runningAppMenuOriginId = null;
+  if (ui && origin) {
+    const card = ui.applicationCard(origin);
+    if (card) {
+      card.focus();
+    }
+  }
+  return true;
+}
+
+function openRunningAppMenu() {
+  if (hostOperationBusy || !ui || ui.currentView !== "applications") {
+    return false;
+  }
+  const active = document.activeElement;
+  const applicationId = active && active.dataset ? active.dataset.applicationId : null;
+  if (!applicationId || String(applicationId) !== String(runningAppId || "")) {
+    return false;
+  }
+  const application = applicationById(applicationId);
+  if (!application) {
+    return false;
+  }
+  runningAppMenuOriginId = applicationId;
+  runningAppMenuHeading.textContent = application.title;
+  runningAppMenu.hidden = false;
+  resumeSessionButton.focus();
+  return true;
+}
+
+function closeSwitchAppDialog() {
+  if (!switchAppDialogIsOpen()) {
+    return false;
+  }
+  switchAppDialog.hidden = true;
+  const targetId = switchTargetApplicationId;
+  switchTargetApplicationId = null;
+  if (ui && targetId) {
+    const card = ui.applicationCard(targetId);
+    if (card) {
+      card.focus();
+    }
+  }
+  return true;
+}
+
+function openSwitchAppDialog(targetId) {
+  const running = applicationById(runningAppId);
+  const target = applicationById(targetId);
+  if (!running || !target || hostOperationBusy) {
+    return false;
+  }
+  switchTargetApplicationId = target.id;
+  switchAppMessage.textContent = "Stop " + running.title + " and launch " + target.title
+    + "? Any unsaved progress may be lost.";
+  switchAppDialog.hidden = false;
+  switchCancelButton.focus();
+  return true;
+}
+
+function resumeRunningApplication() {
+  const applicationId = runningAppMenuOriginId || runningAppId;
+  closeRunningAppMenu();
+  if (!applicationId || hostOperationBusy) {
+    return;
+  }
+  launchApplication(applicationId);
+}
+
+function stopRunningApplication() {
+  closeRunningAppMenu();
+  if (!runningAppId || hostOperationBusy) {
+    return;
+  }
+  try {
+    hostOperationBusy = true;
+    updatePlayAvailability();
+    setHomeMessage("Stopping running application...", false);
+    sendGatewayMessage({ type: "stop-host-session" });
+  } catch (error) {
+    hostOperationBusy = false;
+    reportError("Unable to stop Sunshine application", error);
+    updatePlayAvailability();
+  }
+}
+
+function confirmSwitchApplication() {
+  const targetId = switchTargetApplicationId;
+  closeSwitchAppDialog();
+  if (!targetId || hostOperationBusy) {
+    return;
+  }
+  try {
+    hostOperationBusy = true;
+    updatePlayAvailability();
+    setHomeMessage("Stopping running application before launch...", false);
+    sendGatewayMessage(applicationSessionRequest("switch-session", targetId));
+  } catch (error) {
+    hostOperationBusy = false;
+    reportError("Unable to switch Sunshine application", error);
+    updatePlayAvailability();
+  }
+}
+
+function launchApplication(applicationId) {
+  const optionIndex = Array.prototype.findIndex.call(appSelect.options, function (option) {
+    return option.value === String(applicationId);
+  });
+  if (optionIndex < 0) {
+    reportError("Application launch", new Error("Selected Sunshine application is unavailable"));
+    return;
+  }
+  appSelect.selectedIndex = optionIndex;
+  if (hostOperationBusy) {
+    return;
+  }
+  if (runningAppId) {
+    if (String(runningAppId) === String(applicationId)) {
+      startSelectedSession();
+    } else {
+      openSwitchAppDialog(applicationId);
+    }
+    return;
+  }
+  startSelectedSession();
+}
+
+function moveFocus(container, direction) {
+  const elements = focusableElements(container);
+  if (elements.length === 0) {
+    return;
+  }
+  const currentIndex = elements.indexOf(document.activeElement);
+  const nextIndex = currentIndex < 0
+    ? 0
+    : (currentIndex + direction + elements.length) % elements.length;
+  elements[nextIndex].focus();
+}
+
+function changeSelect(select, direction) {
+  if (!select || select.tagName !== "SELECT" || select.disabled) {
+    return;
+  }
+  const count = select.options.length;
+  if (count === 0) {
+    return;
+  }
+  select.selectedIndex = (select.selectedIndex + direction + count) % count;
+  select.dispatchEvent(new Event("change"));
+}
+
+function exitApplication() {
+  try {
+    if (window.tizen && tizen.application) {
+      tizen.application.getCurrentApplication().exit();
+    }
+  } catch (error) {
+    log("Application exit unavailable: " + errorMessage(error));
+  }
+}
+
+function gamepadUiRoute() {
+  if (!launchingScreen.hidden) {
+    return "ui";
+  }
+  if (streamingScreen.hidden) {
+    return "ui";
+  }
+  return streamMenu.hidden ? "gameplay" : "stream-menu";
+}
+
+function settingLabel(select) {
+  const row = select && select.closest(".setting-row");
+  const label = row && row.querySelector("span");
+  return label ? label.textContent : "Select value";
+}
+
+function settingsSelectorIsOpen() {
+  return !settingsSelectorMenu.hidden;
+}
+
+function closeSettingsSelector() {
+  if (!settingsSelectorIsOpen()) {
+    return false;
+  }
+  settingsSelectorMenu.hidden = true;
+  settingsSelectorOptions.textContent = "";
+  const select = openSettingSelect;
+  openSettingSelect = null;
+  if (select) {
+    select.focus();
+  }
+  return true;
+}
+
+function openSettingsSelector(select) {
+  if (!select || select.disabled || select.tagName !== "SELECT") {
+    return false;
+  }
+  openSettingSelect = select;
+  settingsSelectorHeading.textContent = settingLabel(select);
+  settingsSelectorOptions.textContent = "";
+  Array.prototype.forEach.call(select.options, function (option, index) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "settings-selector-option focusable";
+    button.textContent = option.textContent;
+    button.dataset.optionIndex = String(index);
+    button.classList.toggle("is-current", option.selected);
+    button.addEventListener("click", function () {
+      if (!openSettingSelect) {
+        return;
+      }
+      openSettingSelect.selectedIndex = Number(button.dataset.optionIndex);
+      openSettingSelect.dispatchEvent(new Event("change"));
+      closeSettingsSelector();
+    });
+    settingsSelectorOptions.appendChild(button);
+  });
+  settingsSelectorMenu.hidden = false;
+  const selected = settingsSelectorOptions.querySelector(".is-current");
+  (selected || settingsSelectorOptions.querySelector(".focusable")).focus();
+  return true;
+}
+
+function isGameplayInputActive() {
+  return gamepadUiRoute() === "gameplay";
+}
+
+function navigateUi(direction) {
+  if (!launchingScreen.hidden) {
+    return false;
+  }
+  if (gatewayEditorIsOpen()) {
+    return navigateGatewayEditor(direction);
+  }
+  if (gatewayContextMenuIsOpen()) {
+    if (direction === "up" || direction === "down") {
+      moveFocus(gatewayContextMenu, direction === "down" ? 1 : -1);
+      return true;
+    }
+    return false;
+  }
+  if (gatewayRemoveDialogIsOpen()) {
+    if (direction === "up" || direction === "down") {
+      moveFocus(gatewayRemoveDialog, direction === "down" ? 1 : -1);
+      return true;
+    }
+    return false;
+  }
+  if (runningAppMenuIsOpen()) {
+    if (direction === "up" || direction === "down") {
+      moveFocus(runningAppMenu, direction === "down" ? 1 : -1);
+      return true;
+    }
+    return false;
+  }
+  if (switchAppDialogIsOpen()) {
+    if (direction === "up" || direction === "down") {
+      moveFocus(switchAppDialog, direction === "down" ? 1 : -1);
+      return true;
+    }
+    return false;
+  }
+  if (settingsSelectorIsOpen()) {
+    if (direction === "up" || direction === "down") {
+      moveFocus(settingsSelectorOptions, direction === "down" ? 1 : -1);
+      return true;
+    }
+    return false;
+  }
+  if (gamepadUiRoute() === "stream-menu") {
+    if (direction === "up" || direction === "down") {
+      moveFocus(streamMenu, direction === "down" ? 1 : -1);
+      return true;
+    }
+    return false;
+  }
+  return ui ? ui.focusByDirection(direction) : false;
+}
+
+function activateFocusedControl() {
+  if (!launchingScreen.hidden) {
+    return false;
+  }
+  const active = document.activeElement;
+  if (gatewayEditorIsOpen()) {
+    if (active === gatewayEditorCancelButton) {
+      closeGatewayEditor();
+      return true;
+    }
+    if (active === gatewayEditorConnectButton) {
+      connectGatewayFromEditor();
+      return true;
+    }
+    return gatewayOctetButtons.indexOf(active) >= 0;
+  }
+  if (gatewayContextMenuIsOpen()) {
+    if (active === gatewayEditButton) {
+      const gatewayId = gatewayContextGatewayId;
+      closeGatewayContextMenu();
+      openGatewayEditor("edit", gatewayId);
+      return true;
+    }
+    if (active === gatewayRemoveButton) {
+      return openGatewayRemoveDialog();
+    }
+    return false;
+  }
+  if (gatewayRemoveDialogIsOpen()) {
+    if (active === gatewayRemoveCancelButton) {
+      closeGatewayRemoveDialog();
+      return true;
+    }
+    if (active === gatewayRemoveConfirmButton) {
+      removeGateway();
+      return true;
+    }
+    return false;
+  }
+  if (runningAppMenuIsOpen()) {
+    if (active === resumeSessionButton) {
+      resumeRunningApplication();
+      return true;
+    }
+    if (active === stopHostSessionButton) {
+      stopRunningApplication();
+      return true;
+    }
+    return false;
+  }
+  if (switchAppDialogIsOpen()) {
+    if (active === switchCancelButton) {
+      closeSwitchAppDialog();
+      return true;
+    }
+    if (active === switchConfirmButton) {
+      confirmSwitchApplication();
+      return true;
+    }
+    return false;
+  }
+  if (settingsSelectorIsOpen()) {
+    if (active && active.classList.contains("settings-selector-option")) {
+      active.click();
+      return true;
+    }
+    return false;
+  }
+  if (active && active.tagName === "SELECT") {
+    return openSettingsSelector(active);
+  }
+  if (!active || typeof active.click !== "function") {
+    return false;
+  }
+  active.click();
+  return true;
+}
+
+function goBackFromUiInput() {
+  if (gatewayEditorIsOpen()) {
+    restoreGatewayEditorConnectAction();
+    return closeGatewayEditor();
+  }
+  if (gatewayContextMenuIsOpen()) {
+    return closeGatewayContextMenu();
+  }
+  if (gatewayRemoveDialogIsOpen()) {
+    return closeGatewayRemoveDialog();
+  }
+  if (closeRunningAppMenu() || closeSwitchAppDialog()) {
+    return true;
+  }
+  if (closeSettingsSelector()) {
+    return true;
+  }
+  if (cancelLaunchingSession()) {
+    return true;
+  }
+  if (!streamingScreen.hidden) {
+    if (streamMenu.hidden) {
+      showStreamMenu();
+    } else {
+      hideStreamMenu();
+    }
+    return true;
+  }
+
+  if (settingsSelectorIsOpen()) {
+    if (isUp || isDown) {
+      event.preventDefault();
+      navigateUi(isDown ? "down" : "up");
+    } else if (isEnter) {
+      event.preventDefault();
+      activateFocusedControl();
+    }
+    return;
+  }
+  if (ui && ui.goBack()) {
+    return true;
+  }
+  exitApplication();
+  return true;
+}
+
+function openFocusedApplicationMenu() {
+  if (ui && ui.currentView === "gateway") {
+    return openGatewayContextMenu();
+  }
+  return openRunningAppMenu();
+}
+
+document.addEventListener("keydown", function (event) {
+  const key = event.key;
+  const keyCode = event.keyCode;
+  const isBack = key === "Backspace" || key === "Escape" || keyCode === 10009 || keyCode === 461 || keyCode === 8 || keyCode === 27;
+  const isEnter = key === "Enter" || keyCode === 13;
+  const isUp = key === "ArrowUp" || keyCode === 38;
+  const isDown = key === "ArrowDown" || keyCode === 40;
+  const isLeft = key === "ArrowLeft" || keyCode === 37;
+  const isRight = key === "ArrowRight" || keyCode === 39;
+
+  if (!streamingScreen.hidden) {
+    if (isBack) {
+      event.preventDefault();
+      goBackFromUiInput();
+      return;
+    }
+    if (streamMenu.hidden) {
+      if (isEnter) {
+        event.preventDefault();
+        showOverlayTemporarily();
+        startPlayback();
+      }
+      return;
+    }
+    if (isUp || isDown) {
+      event.preventDefault();
+      navigateUi(isDown ? "down" : "up");
+    } else if (isEnter) {
+      event.preventDefault();
+      activateFocusedControl();
+    }
+    return;
+  }
+
+  if (isBack) {
+    event.preventDefault();
+    goBackFromUiInput();
+  } else if (isUp || isDown) {
+    event.preventDefault();
+    navigateUi(isDown ? "down" : "up");
+  } else if (isLeft || isRight) {
+    if (document.activeElement.tagName === "SELECT") {
+      event.preventDefault();
+      changeSelect(document.activeElement, isRight ? 1 : -1);
+    } else {
+      event.preventDefault();
+      navigateUi(isRight ? "right" : "left");
+    }
+  } else if (isEnter) {
+    if (activateFocusedControl()) {
+      event.preventDefault();
+    }
+  }
+});
+
+playButton.addEventListener("click", startSelectedSession);
+continueButton.addEventListener("click", hideStreamMenu);
+diagnosticsButton.addEventListener("click", toggleDiagnostics);
+stopButton.addEventListener("click", stopCurrentSession);
+resumeSessionButton.addEventListener("click", resumeRunningApplication);
+stopHostSessionButton.addEventListener("click", stopRunningApplication);
+switchCancelButton.addEventListener("click", closeSwitchAppDialog);
+switchConfirmButton.addEventListener("click", confirmSwitchApplication);
+resolutionSelect.addEventListener("change", function () {
+  applySelectedVideoMode();
+  persistCurrentPreferences();
+});
+codecSelect.addEventListener("change", function () {
+  if (!updatingCodecOptions) {
+    codecSelectionWasIntentional = true;
+  }
+  if (codecSelect.value !== "hevc") {
+    hdrSelect.value = "false";
+  }
+  updateHdrOptions(selectedVideoMode());
+  persistCurrentPreferences();
+});
+hdrSelect.addEventListener("change", function () {
+  if (hdrSelect.value === "true" && codecSelect.value !== "hevc") {
+    codecSelect.value = "hevc";
+    codecSelectionWasIntentional = true;
+  }
+  const mode = selectedVideoMode();
+  updateHdrOptions(mode);
+  if (mode && mode.experimental) {
+    setHomeMessage(hdrSelect.value === "true"
+      ? "1440p HDR — Experimental."
+      : "2560 × 1440 is experimental on Samsung Tizen.", false);
+  }
+  persistCurrentPreferences();
+});
+bitrateSelect.addEventListener("change", persistCurrentPreferences);
+
+function updateRemoteTracksForVisibility() {
+  const enabled = !document.hidden;
+  remoteStream.getTracks().forEach(function (track) {
+    track.enabled = enabled;
+  });
+  if (enabled && sessionState === "streaming") {
+    resumeGamepadInput();
+    startPlayback();
+  } else if (!enabled) {
+    suspendGamepadInput(true);
+  }
+}
+
+document.addEventListener("visibilitychange", updateRemoteTracksForVisibility);
+
+function dataChannelIsOpen(channel) {
+  return channel && channel.readyState === "open";
+}
+
+function updateDataChannelState(element, channel) {
+  element.textContent = channel ? channel.readyState : "unavailable";
+}
+
+function legacyCurrentGamepads() {
+  if (!navigator.getGamepads) {
+    return [];
+  }
+  return navigator.getGamepads() || [];
+}
+
+function legacyActiveGamepad() {
+  const gamepads = legacyCurrentGamepads();
+  if (activeGamepadIndex !== null && gamepads[activeGamepadIndex]) {
+    return gamepads[activeGamepadIndex];
+  }
+  for (let index = 0; index < gamepads.length; index += 1) {
+    if (gamepads[index]) {
+      activeGamepadIndex = gamepads[index].index;
+      return gamepads[index];
+    }
+  }
+  return null;
+}
+
+function gamepadButton(gamepad, index) {
+  return gamepad.buttons && gamepad.buttons[index]
+    ? gamepad.buttons[index]
+    : { pressed: false, value: 0 };
+}
+
+function gamepadButtonPressed(gamepad, index) {
+  const button = gamepadButton(gamepad, index);
+  return button.pressed || Number(button.value) > 0.5;
+}
+
+function gamepadAxis(gamepad, index) {
+  if (!gamepad.axes || typeof gamepad.axes[index] !== "number") {
+    return 0;
+  }
+  return gamepad.axes[index];
+}
+
+function standardButtonFlags(gamepad) {
+  let flags = 0;
+  const mappings = [
+    [0, GAMEPAD_BUTTONS.A],
+    [1, GAMEPAD_BUTTONS.B],
+    [2, GAMEPAD_BUTTONS.X],
+    [3, GAMEPAD_BUTTONS.Y],
+    [4, GAMEPAD_BUTTONS.LB],
+    [5, GAMEPAD_BUTTONS.RB],
+    [8, GAMEPAD_BUTTONS.BACK],
+    [9, GAMEPAD_BUTTONS.START],
+    [10, GAMEPAD_BUTTONS.LEFT_STICK],
+    [11, GAMEPAD_BUTTONS.RIGHT_STICK],
+    [12, GAMEPAD_BUTTONS.DPAD_UP],
+    [13, GAMEPAD_BUTTONS.DPAD_DOWN],
+    [14, GAMEPAD_BUTTONS.DPAD_LEFT],
+    [15, GAMEPAD_BUTTONS.DPAD_RIGHT],
+    [16, GAMEPAD_BUTTONS.GUIDE],
+  ];
+  mappings.forEach(function (mapping) {
+    if (gamepadButtonPressed(gamepad, mapping[0])) {
+      flags |= mapping[1];
+    }
+  });
+  return flags;
+}
+
+function gamepadState(gamepad) {
+  return {
+    buttons: standardButtonFlags(gamepad),
+    leftTrigger: Number(gamepadButton(gamepad, 6).value) || 0,
+    rightTrigger: Number(gamepadButton(gamepad, 7).value) || 0,
+    leftStickX: gamepadAxis(gamepad, 0),
+    leftStickY: gamepadAxis(gamepad, 1),
+    rightStickX: gamepadAxis(gamepad, 2),
+    rightStickY: gamepadAxis(gamepad, 3),
+  };
+}
+
+function neutralGamepadState() {
+  return {
+    buttons: 0,
+    leftTrigger: 0,
+    rightTrigger: 0,
+    leftStickX: 0,
+    leftStickY: 0,
+    rightStickX: 0,
+    rightStickY: 0,
+  };
+}
+
+function recordInputMessage(now) {
+  inputMessagesInWindow += 1;
+  const elapsed = now - inputRateWindowStart;
+  if (elapsed >= 1000) {
+    gamepadDiagnostics.sendRate.textContent = (
+      inputMessagesInWindow * 1000 / elapsed
+    ).toFixed(1);
+    inputMessagesInWindow = 0;
+    inputRateWindowStart = now;
+  }
+}
+
+function sendCompleteGamepadState(state, now) {
+  if (!dataChannelIsOpen(gamepadDataChannel) || !gamepadAnnounced) {
+    return false;
+  }
+  gamepadSequence += 1;
+  gamepadDataChannel.send(JSON.stringify({
+    v: GAMEPAD_PROTOCOL_VERSION,
+    type: "gamepad-state",
+    seq: gamepadSequence,
+    timestampMs: now,
+    buttons: state.buttons,
+    leftTrigger: state.leftTrigger,
+    rightTrigger: state.rightTrigger,
+    leftStickX: state.leftStickX,
+    leftStickY: state.leftStickY,
+    rightStickX: state.rightStickX,
+    rightStickY: state.rightStickY,
+  }));
+  lastFullStateSendTime = now;
+  gamepadDiagnostics.lastSequence.textContent = String(gamepadSequence);
+  recordInputMessage(now);
+  return true;
+}
+
+function announceGamepad(gamepad) {
+  if (!gamepad || !dataChannelIsOpen(controlDataChannel) || document.hidden
+      || sessionState !== "streaming") {
+    return false;
+  }
+  controlDataChannel.send(JSON.stringify({
+    v: GAMEPAD_PROTOCOL_VERSION,
+    type: "gamepad-connected",
+    index: gamepad.index,
+    id: gamepad.id || "Unknown gamepad",
+    mapping: gamepad.mapping || "",
+    buttons: gamepad.buttons ? gamepad.buttons.length : 0,
+    axes: gamepad.axes ? gamepad.axes.length : 0,
+  }));
+  gamepadAnnounced = true;
+  log("Gamepad connected: " + (gamepad.id || "Unknown gamepad"));
+  return true;
+}
+
+function notifyGamepadDisconnected() {
+  if (gamepadAnnounced && dataChannelIsOpen(controlDataChannel)) {
+    controlDataChannel.send(JSON.stringify({
+      v: GAMEPAD_PROTOCOL_VERSION,
+      type: "gamepad-disconnected",
+    }));
+  }
+  gamepadAnnounced = false;
+}
+
+function updateGamepadDiagnostics(gamepad) {
+  const connected = Boolean(gamepad);
+  gamepadDiagnostics.state.textContent = connected ? "CONNECTED" : "DISCONNECTED";
+  gamepadDiagnostics.id.textContent = connected ? (gamepad.id || "Unknown gamepad") : "-";
+  gamepadDiagnostics.mapping.textContent = connected ? (gamepad.mapping || "none") : "-";
+  overlay.gamepad.textContent = connected ? "Connected" : "Disconnected";
+  if (ui) {
+    ui.setControllerName(connected ? (gamepad.id || "Unknown gamepad") : "Not connected");
+  }
+}
+
+function stopGamepadPolling() {
+  if (gamepadPollTimer !== null) {
+    clearTimeout(gamepadPollTimer);
+    gamepadPollTimer = null;
+  }
+}
+
+function scheduleGamepadPoll() {
+  if (document.hidden || gamepadPollTimer !== null || sessionState !== "streaming") {
+    return;
+  }
+  const delay = Math.max(0, nextGamepadPollTime - performance.now());
+  gamepadPollTimer = setTimeout(pollGamepad, delay);
+}
+
+function pollGamepad() {
+  gamepadPollTimer = null;
+  if (document.hidden || sessionState !== "streaming") {
+    return;
+  }
+  const gamepad = activeGamepad();
+  if (!gamepad) {
+    if (activeGamepadIndex !== null) {
+      sendCompleteGamepadState(neutralGamepadState(), performance.now());
+      notifyGamepadDisconnected();
+      activeGamepadIndex = null;
+      updateGamepadDiagnostics(null);
+      log("Gamepad disconnected");
+    }
+    return;
+  }
+
+  updateGamepadDiagnostics(gamepad);
+  if (!gamepadAnnounced) {
+    announceGamepad(gamepad);
+  }
+  const now = performance.now();
+  const state = gamepadState(gamepad);
+  const fingerprint = JSON.stringify(state);
+  if (fingerprint !== lastGamepadFingerprint
+      || now - lastFullStateSendTime >= GAMEPAD_KEEPALIVE_INTERVAL_MS) {
+    if (sendCompleteGamepadState(state, now)) {
+      lastGamepadFingerprint = fingerprint;
+    }
+  }
+  nextGamepadPollTime += GAMEPAD_POLL_INTERVAL_MS;
+  if (nextGamepadPollTime < now - GAMEPAD_POLL_INTERVAL_MS * 4) {
+    nextGamepadPollTime = now + GAMEPAD_POLL_INTERVAL_MS;
+  }
+  scheduleGamepadPoll();
+}
+
+function legacyResumeGamepadInput() {
+  const gamepad = legacyActiveGamepad();
+  updateGamepadDiagnostics(gamepad);
+  if (!gamepad || sessionState !== "streaming") {
+    return;
+  }
+  if (!gamepadAnnounced) {
+    announceGamepad(gamepad);
+  }
+  lastGamepadFingerprint = "";
+  nextGamepadPollTime = performance.now();
+  scheduleGamepadPoll();
+}
+
+function legacySuspendGamepadInputV1(notifyGateway) {
+  stopGamepadPolling();
+  if (gamepadAnnounced) {
+    sendCompleteGamepadState(neutralGamepadState(), performance.now());
+    if (notifyGateway) {
+      notifyGamepadDisconnected();
+    }
+  }
+  lastGamepadFingerprint = "";
+}
+
+function legacyConfigureControlDataChannelV1(channel) {
+  controlDataChannel = channel;
+  updateDataChannelState(gamepadDiagnostics.controlChannel, channel);
+  channel.onopen = function () {
+    updateDataChannelState(gamepadDiagnostics.controlChannel, channel);
+    log("Control DataChannel opened");
+    resumeGamepadInput();
+  };
+  channel.onclose = function () {
+    updateDataChannelState(gamepadDiagnostics.controlChannel, channel);
+    suspendGamepadInput(false);
+    gamepadAnnounced = false;
+    log("Control DataChannel closed");
+  };
+  channel.onerror = function (event) {
+    reportError("Control DataChannel error", event.error || event);
+  };
+}
+
+function legacyConfigureGamepadDataChannelV1(channel) {
+  gamepadDataChannel = channel;
+  updateDataChannelState(gamepadDiagnostics.inputChannel, channel);
+  channel.onopen = function () {
+    updateDataChannelState(gamepadDiagnostics.inputChannel, channel);
+    log("Gamepad DataChannel opened");
+    lastGamepadFingerprint = "";
+    resumeGamepadInput();
+  };
+  channel.onclose = function () {
+    updateDataChannelState(gamepadDiagnostics.inputChannel, channel);
+    suspendGamepadInput(true);
+    log("Gamepad DataChannel closed");
+  };
+  channel.onerror = function (event) {
+    reportError("Gamepad DataChannel error", event.error || event);
+  };
+}
+
+window.addEventListener("gamepadconnected", function (event) {
+  gamepadInputManager.register(event.gamepad);
+  syncGamepadUi();
+  showNotification("Controller connected", event.gamepad.id || "Unknown gamepad", false);
+  gamepadInputManager.resume();
+});
+
+window.addEventListener("gamepaddisconnected", function (event) {
+  gamepadInputManager.unregister(event.gamepad.index, true);
+  syncGamepadUi();
+  showNotification("Controller disconnected", event.gamepad.id || "Unknown gamepad", false);
+});
+
+const gamepadInputManager = new window.GamepadInputManager({
+  controlChannel: function () { return controlDataChannel; },
+  gamepadChannel: function () { return gamepadDataChannel; },
+  isStreaming: isGameplayInputActive,
+  log: log,
+  reportError: reportError,
+  diagnostics: gamepadDiagnostics,
+  overlay: overlay.gamepad,
+  mouseOverlay: document.getElementById("mouse-mode-overlay"),
+  onStopShortcut: handleGamepadStopShortcut,
+  onMouseModeChanged: handleMouseModeChanged,
+});
+
+const gamepadUiNavigation = window.GamepadUiNavigation.create({
+  route: gamepadUiRoute,
+  navigate: navigateUi,
+  activate: activateFocusedControl,
+  back: goBackFromUiInput,
+  menu: openFocusedApplicationMenu,
+});
+
+function syncGamepadUi() {
+  const gamepad = gamepadInputManager.firstGamepad();
+  if (ui) {
+    ui.setControllerName(gamepad ? (gamepad.id || "Unknown gamepad") : "Not connected");
+  }
+}
+
+function activeGamepad() {
+  return gamepadInputManager.firstGamepad();
+}
+
+function resumeGamepadInput() {
+  gamepadInputManager.resume();
+  syncGamepadUi();
+}
+
+function suspendGamepadInput(notifyGateway) {
+  gamepadInputManager.suspend(Boolean(notifyGateway));
+  syncGamepadUi();
+}
+
+function configureControlDataChannel(channel) {
+  controlDataChannel = channel;
+  updateDataChannelState(gamepadDiagnostics.controlChannel, channel);
+  channel.onopen = function () {
+    updateDataChannelState(gamepadDiagnostics.controlChannel, channel);
+    log("Control DataChannel opened");
+    gamepadInputSessionInitialized = true;
+    gamepadInputManager.beginSession();
+    syncGamepadUi();
+  };
+  channel.onmessage = function (event) {
+    gamepadInputManager.handleControlMessage(event.data);
+  };
+  channel.onclose = function () {
+    updateDataChannelState(gamepadDiagnostics.controlChannel, channel);
+    gamepadInputManager.suspend(false);
+    gamepadInputSessionInitialized = false;
+    syncGamepadUi();
+    log("Control DataChannel closed");
+  };
+  channel.onerror = function (event) {
+    reportDataChannelError("Control DataChannel error", event.error || event);
+  };
+}
+
+function configureGamepadDataChannel(channel) {
+  gamepadDataChannel = channel;
+  updateDataChannelState(gamepadDiagnostics.inputChannel, channel);
+  channel.onopen = function () {
+    updateDataChannelState(gamepadDiagnostics.inputChannel, channel);
+    log("Gamepad DataChannel opened");
+    if (!gamepadInputSessionInitialized && dataChannelIsOpen(controlDataChannel)) {
+      gamepadInputSessionInitialized = true;
+      gamepadInputManager.beginSession();
+    } else {
+      gamepadInputManager.resume();
+    }
+    syncGamepadUi();
+  };
+  channel.onclose = function () {
+    updateDataChannelState(gamepadDiagnostics.inputChannel, channel);
+    gamepadInputManager.suspend(true);
+    syncGamepadUi();
+    log("Gamepad DataChannel closed");
+  };
+  channel.onerror = function (event) {
+    reportDataChannelError("Gamepad DataChannel error", event.error || event);
+  };
+}
+
+function statisticValue(report, name) {
+  return typeof report[name] === "undefined" ? 0 : report[name];
+}
+
+function availableRuntimeValue(sources, names) {
+  for (let sourceIndex = 0; sourceIndex < sources.length; sourceIndex += 1) {
+    const source = sources[sourceIndex];
+    if (!source) {
+      continue;
+    }
+    for (let nameIndex = 0; nameIndex < names.length; nameIndex += 1) {
+      const value = source[names[nameIndex]];
+      if (typeof value !== "undefined" && value !== null && value !== "") {
+        return value;
+      }
+    }
+  }
+  return null;
+}
+
+function displayRuntimeValue(element, value) {
+  element.textContent = value === null
+    ? "unavailable"
+    : typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+async function updateStatistics() {
+  if (!peerConnection) {
+    return;
+  }
+  try {
+    const reports = await peerConnection.getStats();
+    let inboundVideo = null;
+    let inboundAudio = null;
+    const codecReports = {};
+    reports.forEach(function (report) {
+      const kind = typeof report.kind === "undefined" ? report.mediaType : report.kind;
+      if (report.type === "inbound-rtp" && kind === "video" && !report.isRemote) {
+        inboundVideo = report;
+      } else if (report.type === "inbound-rtp" && kind === "audio" && !report.isRemote) {
+        inboundAudio = report;
+      } else if (report.type === "codec" && report.id) {
+        codecReports[report.id] = report;
+      }
+    });
+
+    statistics.actualResolution.textContent = String(videoElement.videoWidth || 0)
+      + " × " + String(videoElement.videoHeight || 0);
+    if (selectedSession) {
+      statistics.requestedResolution.textContent = String(selectedSession.width)
+        + " × " + String(selectedSession.height);
+      statistics.requestedCodec.textContent = codecDisplayName(selectedSession.codec);
+      statistics.requestedHdr.textContent = selectedSession.hdr ? "On" : "Off";
+      statistics.requestedBitrate.textContent = String(selectedSession.bitrateKbps / 1000)
+        + " Mbps";
+    }
+
+    if (inboundVideo) {
+      const framesDecoded = statisticValue(inboundVideo, "framesDecoded");
+      const sampleTime = typeof inboundVideo.timestamp === "number"
+        ? inboundVideo.timestamp
+        : performance.now();
+      statistics.video.framesReceived.textContent = statisticValue(inboundVideo, "framesReceived");
+      statistics.video.framesDecoded.textContent = framesDecoded;
+      statistics.video.framesDropped.textContent = statisticValue(inboundVideo, "framesDropped");
+      statistics.video.packetsReceived.textContent = statisticValue(inboundVideo, "packetsReceived");
+      statistics.video.packetsLost.textContent = statisticValue(inboundVideo, "packetsLost");
+      statistics.video.bytesReceived.textContent = statisticValue(inboundVideo, "bytesReceived");
+      const codecReport = inboundVideo.codecId ? codecReports[inboundVideo.codecId] : null;
+      const receivedCodec = codecReport && codecReport.mimeType
+        ? String(codecReport.mimeType)
+        : "-";
+      statistics.receivedCodec.textContent = receivedCodec;
+      const videoTrack = remoteStream.getVideoTracks()[0] || null;
+      const videoSettings = videoTrack && typeof videoTrack.getSettings === "function"
+        ? videoTrack.getSettings()
+        : null;
+      const runtimeSources = [videoSettings, inboundVideo, codecReport];
+      displayRuntimeValue(statistics.receivedColorSpace, availableRuntimeValue(
+        runtimeSources, ["colorSpace", "colourSpace", "colorPrimaries"]));
+      displayRuntimeValue(statistics.receivedTransfer, availableRuntimeValue(
+        runtimeSources, ["transferCharacteristics", "transferFunction", "colorTransfer"]));
+      displayRuntimeValue(statistics.receivedBitDepth, availableRuntimeValue(
+        runtimeSources, ["bitDepth", "bitsPerComponent"]));
+      displayRuntimeValue(statistics.receivedHdr, availableRuntimeValue(
+        runtimeSources, ["hdr", "hdrMetadataType", "highDynamicRange"]));
+      if (previousDecodedSample && sampleTime > previousDecodedSample.time) {
+        const elapsedSeconds = (sampleTime - previousDecodedSample.time) / 1000;
+        statistics.video.decodedFps.textContent = (
+          (framesDecoded - previousDecodedSample.frames) / elapsedSeconds
+        ).toFixed(1);
+      }
+      previousDecodedSample = { time: sampleTime, frames: framesDecoded };
+
+      if (sampleTime - lastStatisticsConsoleTime >= 5000) {
+        lastStatisticsConsoleTime = sampleTime;
+        console.log("Stream diagnostics: " + JSON.stringify({
+          requestedWidth: selectedSession ? selectedSession.width : 0,
+          requestedHeight: selectedSession ? selectedSession.height : 0,
+          requestedCodec: selectedSession ? selectedSession.codec : "unknown",
+          requestedHdr: selectedSession ? selectedSession.hdr : false,
+          requestedBitrateKbps: selectedSession ? selectedSession.bitrateKbps : 0,
+          actualWidth: videoElement.videoWidth || 0,
+          actualHeight: videoElement.videoHeight || 0,
+          receivedCodec: receivedCodec,
+          runtimeColorSpace: statistics.receivedColorSpace.textContent,
+          runtimeTransfer: statistics.receivedTransfer.textContent,
+          runtimeBitDepth: statistics.receivedBitDepth.textContent,
+          runtimeHdr: statistics.receivedHdr.textContent,
+          decodedFps: statistics.video.decodedFps.textContent,
+          framesReceived: statisticValue(inboundVideo, "framesReceived"),
+          framesDecoded: framesDecoded,
+          framesDropped: statisticValue(inboundVideo, "framesDropped"),
+          packetsReceived: statisticValue(inboundVideo, "packetsReceived"),
+          packetsLost: statisticValue(inboundVideo, "packetsLost"),
+          bytesReceived: statisticValue(inboundVideo, "bytesReceived"),
+          audioPacketsReceived: inboundAudio
+            ? statisticValue(inboundAudio, "packetsReceived") : 0,
+          audioPacketsLost: inboundAudio ? statisticValue(inboundAudio, "packetsLost") : 0,
+          audioJitter: inboundAudio ? statisticValue(inboundAudio, "jitter") : 0,
+          gamepadConnected: activeGamepad() !== null,
+        }));
+      }
+    }
+
+    if (inboundAudio) {
+      statistics.audio.packetsReceived.textContent = statisticValue(inboundAudio, "packetsReceived");
+      statistics.audio.packetsLost.textContent = statisticValue(inboundAudio, "packetsLost");
+      statistics.audio.bytesReceived.textContent = statisticValue(inboundAudio, "bytesReceived");
+      statistics.audio.jitter.textContent = Number(
+        statisticValue(inboundAudio, "jitter")
+      ).toFixed(6);
+    }
+  } catch (error) {
+    if (!statisticsErrorReported) {
+      statisticsErrorReported = true;
+      reportError("getStats failed", error);
+    }
+  }
+}
+
+window.addEventListener("unhandledrejection", function (event) {
+  reportError("Unhandled promise rejection", event.reason);
+});
+
+ui = TizenUi.create({
+  onApplicationSelected: launchApplication,
+  onGatewaySelected: activateGateway,
+  onAddGateway: function () { openGatewayEditor("add"); },
+  hasActiveGateway: function () { return Boolean(activeGateway && gatewayConnected); },
+});
+gatewayOctetButtons.forEach(function (button, index) {
+  button.addEventListener("click", function () {
+    if (gatewayEditorState) {
+      focusGatewayOctet(index);
+    }
+  });
+});
+gatewayEditorCancelButton.addEventListener("click", function () {
+  restoreGatewayEditorConnectAction();
+  closeGatewayEditor();
+});
+gatewayEditorConnectButton.addEventListener("click", connectGatewayFromEditor);
+gatewayEditButton.addEventListener("click", function () {
+  const gatewayId = gatewayContextGatewayId;
+  closeGatewayContextMenu();
+  openGatewayEditor("edit", gatewayId);
+});
+gatewayRemoveButton.addEventListener("click", openGatewayRemoveDialog);
+gatewayRemoveCancelButton.addEventListener("click", closeGatewayRemoveDialog);
+gatewayRemoveConfirmButton.addEventListener("click", removeGateway);
+artworkLoader = ApplicationArtworkLoader.create({
+  requestArtwork: function (appId) {
+    try {
+      sendGatewayMessage({ type: "get-app-artwork", appId: appId });
+    } catch (error) {
+      log("Unable to request Sunshine artwork: " + errorMessage(error));
+      artworkLoader.handleResponse({ appId: appId, available: false });
+    }
+  },
+  onArtwork: function (appId, artworkDataUrl) {
+    if (ui) {
+      ui.updateApplicationArtwork(appId, artworkDataUrl);
+    }
+  },
+});
+ui.setActiveGateway(null);
+ui.setSunshineState("Unknown");
+ui.setWebRtcState("Idle");
+
+setInterval(updateStatistics, 1000);
+updateTrackCounts();
+gamepadInputManager.updateDiagnostics();
+syncGamepadUi();
+showHome();
+gamepadUiNavigation.start();
+renderGateways();
+probeSavedGateways();
