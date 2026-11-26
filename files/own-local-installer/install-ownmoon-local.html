@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Install Local Moonlight Copy</title>
+<style>
+body{background:#111;color:#eee;font:18px sans-serif;margin:24px}
+h1{font-size:28px}
+button{font:18px sans-serif;margin:4px 6px 4px 0;padding:8px 12px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:180px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>INSTALL LOCAL MOONLIGHT COPY</h1>
+<p>POINTS OWN TILE AT THE DECODED LOCAL FILE. NO ROOT. NO OAD.</p>
+<div>
+<button id="backup">1 BACKUP</button>
+<button id="check">2 CHECK FILE</button>
+<button id="add">3 ADD / REPOINT TILE</button>
+<button id="read">4 READBACK</button>
+<button id="remove">5 REMOVE TILE</button>
+<button id="restore">6 RESTORE</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var APPINFO='websdk/Appinfo.json';
+var BAK='websdk/Appinfo.json.ownbak-local';
+var FILE='emanual/Local_ebook/ownmoon-local.html';
+var APP_ID='ownmoon';
+var TILE_URL='file:///APPS/emanual/Local_ebook/ownmoon-local.html';
+var ICON='https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function read(path){
+  var r=call('fileRead',{path:path,mode:6});
+  if(!isOk(r))throw new Error('READ '+path+' '+JSON.stringify(r).slice(0,250));
+  var t=body(r);if(t===null)throw new Error('NO BODY '+path);
+  return t;
+}
+function write(path,text){
+  var r=call('fileWrite',{path:path,mode:6,writedata:text});
+  if(!isOk(r))throw new Error('WRITE '+path+' '+JSON.stringify(r).slice(0,250));
+}
+function parseAppinfo(text){
+  var d=JSON.parse(text);
+  if(Array.isArray(d))d={AppInfo:d};
+  if(!d.AppInfo||!Array.isArray(d.AppInfo))d.AppInfo=[];
+  return d;
+}
+function readAppinfo(){return parseAppinfo(read(APPINFO));}
+function writeAppinfo(data){write(APPINFO,JSON.stringify(data));}
+function newEntry(){
+  return {
+    Id:APP_ID,
+    AppId:APP_ID,
+    AppName:'Own Moon Local',
+    Title:'Own Moon Local',
+    URL:TILE_URL,
+    StartCommand:TILE_URL,
+    IconURL:ICON,
+    Icon_96:ICON,
+    Image:ICON,
+    Thumb:ICON,
+    InstallTime:'2026-11-26',
+    RunTimes:0,
+    StoreType:'hisense',
+    PreInstall:false
+  };
+}
+function isOurs(a){
+  if(!a)return false;
+  if(a.Id===APP_ID||a.AppId===APP_ID)return true;
+  var u=String(a.URL||'');
+  return u.indexOf('ownmoon-local')>=0||u.indexOf('ownmoon')>=0;
+}
+
+document.getElementById('backup').addEventListener('click',function(){
+  clear();
+  try{
+    if(isOk(call('fileRead',{path:BAK,mode:6}))){warn('BACKUP EXISTS - SKIP');return;}
+    var t=read(APPINFO);
+    write(BAK,t);
+    ok('BACKUP MADE '+t.length);
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('check').addEventListener('click',function(){
+  clear();
+  try{
+    var t=read(FILE);
+    ok('FILE LEN '+t.length);
+    ok('HEAD '+t.slice(0,120).replace(/\s+/g,' '));
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('add').addEventListener('click',function(){
+  clear();
+  try{
+    var t=read(FILE);
+    if(t.indexOf('<html')<0)throw new Error('LOCAL FILE MISSING');
+    var data=readAppinfo();
+    var list=data.AppInfo;
+    var idx=-1;
+    for(var i=0;i<list.length;i++){if(isOurs(list[i])){idx=i;break;}}
+    if(idx>=0)list[idx]=newEntry();else list.push(newEntry());
+    writeAppinfo(data);
+    ok('TILE ADDED COUNT '+list.length);
+    ok('URL '+TILE_URL);
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('read').addEventListener('click',function(){
+  clear();
+  try{
+    var data=readAppinfo();
+    ok('COUNT '+data.AppInfo.length);
+    var found=false;
+    for(var i=0;i<data.AppInfo.length;i++){
+      var a=data.AppInfo[i];
+      if(a&&a.Id===APP_ID){found=true;ok('ID OWNMOON URL '+String(a.URL||'').slice(0,160));break;}
+    }
+    if(!found)bad('ID OWNMOON NOT FOUND');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('remove').addEventListener('click',function(){
+  clear();
+  try{
+    var data=readAppinfo();
+    var before=data.AppInfo.length;
+    data.AppInfo=data.AppInfo.filter(function(a){return !isOurs(a);});
+    writeAppinfo(data);
+    ok('TILE REMOVED '+before+' TO '+data.AppInfo.length);
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('restore').addEventListener('click',function(){
+  clear();
+  try{
+    var t=read(BAK);
+    write(APPINFO,t);
+    ok('RESTORED');
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>

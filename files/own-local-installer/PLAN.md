@@ -221,4 +221,22 @@ signal explains the spinner. `ladder-js9-loadlog.html` now logs `LOAD`, `HB1`,
 `ready=interactive` and no `LOAD` event. So our UI is visible; the launcher
 spinner is an overlay waiting for `load`, which never fires. Remaining resource
 tags are two malformed data-URI GIFs and `<video autoplay>`.
-`make_resource_tests.py` produces GOODGIF, NOIMG, and NOAUTO variants.
+`make_resource_tests.py` produces GOODGIF, NOIMG, and NOAUTO variants. GOODGIF
+still left `ready=interactive`; no `LOAD`.
+
+User decision: stop debugging our bundle. Copy the already-installed Sidee
+Moonlight bundle into a local, user-maintained file instead. This is allowed
+because it is their own installed donation-entry bundle and they own the
+lifetime licence. I will not paste Sidee source into chat or into our client
+source; the copy happens on the TV through documented `fileRead`/`fileWrite`.
+
+New files:
+- `sidee-localize.html` - reads `index.html`, decodes `M.moonlight`, writes
+  `emanual/Local_ebook/ownmoon-local.html`.
+- `install-ownmoon-local.html` - backs up AppInfo, repoints `Id: ownmoon` to
+  `file:///APPS/emanual/Local_ebook/ownmoon-local.html`, with readback/remove/
+  restore. Sidee entry itself is untouched.
+- `sidee-export.html` - base64-exports `ownmoon-local.html` to `SIDEE BKUP`
+  log chunks, with SHA-256.
+- `rebuild_backup.py` - rebuilds the exact HTML from a raw logs dump.
+- `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.

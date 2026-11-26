@@ -111,6 +111,17 @@ function vendorHits(text){
   }
   return hits;
 }
+function auditHits(text){
+  var re=/fetch\s*\(|XMLHttpRequest|https?:\/\/|wss?:\/\/|token|entitle|licen[cs]e|donat|sidee|api|ajax|eval\s*\(|location\.href|window\.open|localStorage|sessionStorage|indexedDB|navigator\./gi;
+  var hits=[],m;
+  while((m=re.exec(text))!==null&&hits.length<160){
+    var start=Math.max(0,m.index-260);
+    var end=Math.min(text.length,m.index+m[0].length+260);
+    hits.push('@'+m.index+' '+text.slice(start,end).replace(/\s+/g,' '));
+    if(re.lastIndex===m.index)re.lastIndex++;
+  }
+  return hits;
+}
 async function decode(full){
   clear();decoded='';
   try{
@@ -125,19 +136,22 @@ async function decode(full){
     var u=urls(decoded);
     var s=snippets(decoded);
     var v=vendorHits(decoded);
+    var a=auditHits(decoded);
     post('D2HEAD',decoded.slice(0,12000));
     post('D2TAIL',decoded.slice(Math.max(0,decoded.length-12000)));
     post('D2URLS',u.join('\n'));
     post('D2SUM',s.join('\n'));
     post('D2VENDOR',v.join('\n'));
+    post('D2AUDIT',a.join('\n'));
     ok('URLS '+u.length);
     ok('SUMMARY '+s.length);
     ok('VENDOR '+v.length);
+    ok('AUDIT '+a.length);
     if(full){
       post('D2FULL',decoded);
       warn('FULL LOGGED');
     }
-    warn('CHECK LOGS D2HEAD D2TAIL D2URLS D2SUM D2VENDOR');
+    warn('CHECK LOGS D2HEAD D2TAIL D2URLS D2SUM D2VENDOR D2AUDIT');
   }catch(e){
     bad(e.message);
     post('D2ERR',e.message);
