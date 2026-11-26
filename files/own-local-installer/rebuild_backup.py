@@ -1,10 +1,10 @@
-"""Rebuild the decoded local Moonlight HTML from SIDEE BKUP log lines.
+"""Rebuild the decoded local Moonlight HTML from SIDEE BKUP2 log lines.
 
 Usage:
     python3 rebuild_backup.py LOGS.txt OUTPUT.html
 
 LOGS.txt can be a raw dump of http://192.168.1.69:8484/logs.
-Only lines containing "SIDEE BKUP <i>/<n> <base64>" are used.
+BKUP2 lines are preferred. Older partial BKUP lines are used only as a fallback.
 """
 from pathlib import Path
 import base64
@@ -12,20 +12,16 @@ import hashlib
 import re
 import sys
 
-TAG = re.compile(r"SIDEE\s+BKUP\s+(\d+)/(\d+)\s+(.*)$")
+TAG2 = re.compile(r"SIDEE\s+BKUP2\s+(\d+)/(\d+)\s+(.*)$")
+TAG1 = re.compile(r"SIDEE\s+BKUP\s+(\d+)/(\d+)\s+(.*)$")
 CHARS = re.compile(r"[^A-Za-z0-9+/=]")
 
 
-def main():
-    if len(sys.argv) != 3:
-        raise SystemExit("usage: rebuild_backup.py LOGS.txt OUTPUT.html")
-
-    src = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+def collect(src, tag):
     chunks = {}
     total = None
-
     for line in src.splitlines():
-        m = TAG.search(line)
+        m = tag.search(line)
         if not m:
             continue
         index = int(m.group(1))
@@ -36,9 +32,22 @@ def main():
         elif total != count:
             raise SystemExit("inconsistent total: %d vs %d" % (total, count))
         chunks[index] = data
+    return chunks, total
+
+
+def main():
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: rebuild_backup.py LOGS.txt OUTPUT.html")
+
+    src = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+    chunks, total = collect(src, TAG2)
+    tag_name = "BKUP2"
+    if not chunks:
+        chunks, total = collect(src, TAG1)
+        tag_name = "BKUP"
 
     if not chunks:
-        raise SystemExit("no SIDEE BKUP lines found")
+        raise SystemExit("no SIDEE BKUP2 or BKUP lines found")
     missing = [i for i in range(total) if i not in chunks]
     if missing:
         raise SystemExit("missing chunks: " + ",".join(map(str, missing[:20])))
@@ -50,6 +59,7 @@ def main():
     out.write_text(html, encoding="utf-8")
 
     digest = hashlib.sha256(html.encode("utf-8")).hexdigest()
+    print("source", tag_name, "chunks", total)
     print("wrote", out, len(html.encode("utf-8")), "bytes")
     print("sha256", digest)
 

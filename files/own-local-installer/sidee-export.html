@@ -22,6 +22,8 @@ pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-h
 <script>
 var LOG='https://moonlight.joaopacheco.me:8444/api/log';
 var SRC='emanual/Local_ebook/index.html';
+var TAG='BKUP2';
+var CHUNK=12000;
 
 function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
 function clear(){document.getElementById('out').textContent='';}
@@ -40,14 +42,20 @@ function read(path){
   var t=body(r);if(t===null)throw new Error('NO BODY '+path);
   return t;
 }
-function post(tag,text){
+function pause(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function post(tag,text){
   var s=String(text==null?'':text);
-  var size=3000;
-  var n=Math.max(1,Math.ceil(s.length/size));
+  var n=Math.max(1,Math.ceil(s.length/CHUNK));
   for(var i=0;i<n;i++){
-    try{
-      fetch(LOG,{method:'POST',body:'SIDEE '+tag+' '+i+'/'+n+' '+s.slice(i*size,(i+1)*size),mode:'no-cors',keepalive:true});
-    }catch(e){}
+    var payload='SIDEE '+tag+' '+i+'/'+n+' '+s.slice(i*CHUNK,(i+1)*CHUNK);
+    for(var attempt=0;attempt<2;attempt++){
+      try{
+        await fetch(LOG,{method:'POST',body:payload,mode:'no-cors',keepalive:true});
+        break;
+      }catch(e){}
+      await pause(200);
+    }
+    await pause(80);
   }
   return n;
 }
@@ -101,15 +109,16 @@ document.getElementById('export').addEventListener('click',async function(){
     var bytes=new TextEncoder().encode(d.html);
     var hash=await sha256(d.html);
     var b64=toBase64(d.html);
-    var n=post('BKUP',b64);
-    post('BKUPINFO','SRC '+SRC+' BLOB '+d.b64.length+' UTF8 '+bytes.length);
+    var n=await post(TAG,b64);
+    await post('INFO2','SRC '+SRC+' BLOB '+d.b64.length+' UTF8 '+bytes.length);
+    ok('TAG '+TAG);
     ok('SOURCE LEN '+d.idx.length);
     ok('BLOB LEN '+d.b64.length);
     ok('HTML BYTES '+bytes.length);
     ok('BASE64 LEN '+b64.length);
     ok('CHUNKS '+n);
     ok('SHA256 '+hash);
-    warn('SAVE BKUP LINKS FROM LOGS');
+    warn('CHECK LOGS FOR 0/'+n+' TO '+(n-1)+'/'+n);
   }catch(e){bad(e.message);}
 });
 
