@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>App Bisect</title>
+<style>
+body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
+h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:150px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>APP.JS BISECT</h1>
+<p>ALL VARIANTS USE DATA IMAGE. WRITES TO WORKING OWN HELLO FILE.</p>
+<div>
+<button data-f="ladder-hello.html">HELLO</button>
+<button data-f="ladder-js8.html">JS8</button>
+<button data-f="ladder-app10.html">APP10</button>
+<button data-f="ladder-app20.html">APP20</button>
+<button data-f="ladder-app30.html">APP30</button>
+<button data-f="ladder-app40.html">APP40</button>
+<button data-f="ladder-app50.html">APP50</button>
+<button data-f="ladder-app60.html">APP60</button>
+<button data-f="ladder-app70.html">APP70</button>
+<button data-f="ladder-app80.html">APP80</button>
+<button data-f="ladder-app90.html">APP90</button>
+<button data-f="ladder-app100.html">APP100</button>
+<button id="read">READBACK</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var TARGET='emanual/Local_ebook/ownhello.html';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+
+async function put(file){
+  clear();
+  try{
+    var res=await fetch(file+'?raw=ab',{cache:'no-store'});
+    if(!res.ok)throw new Error('FETCH '+file+' HTTP '+res.status);
+    var text=await res.text();
+    ok('FETCH '+file+' '+text.length);
+    var w=call('fileWrite',{path:TARGET,mode:6,writedata:text});
+    if(!isOk(w))throw new Error('WRITE '+JSON.stringify(w).slice(0,300));
+    var v=call('fileRead',{path:TARGET,mode:6});
+    if(!isOk(v))throw new Error('READ '+JSON.stringify(v).slice(0,300));
+    ok('WROTE '+body(v).length);
+    warn('OPEN OWN HELLO NOW');
+  }catch(e){bad(e.message);}
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('button[data-f]'),function(b){
+  b.addEventListener('click',function(){put(b.getAttribute('data-f'));});
+});
+
+document.getElementById('read').addEventListener('click',function(){
+  clear();
+  try{
+    var v=call('fileRead',{path:TARGET,mode:6});
+    if(!isOk(v))throw new Error('READ '+JSON.stringify(v).slice(0,300));
+    var t=body(v)||'';
+    ok('LEN '+t.length);
+    ok('HEAD '+t.slice(0,100).replace(/\s+/g,' '));
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>

