@@ -163,3 +163,9 @@ User also removed two older Moonlight tiles; current count 11. The pasted
 `inspect` line appeared to show `AppId=ownmoon` without `Id=ownmoon`, but the
 user confirmed that was TV/OCR mangling; `Id` is intact. Next tests isolate
 whether the launcher requires an `index.html` filename.
+
+Results: `OWN HELLO` at `emanual/Local_ebook/ownhello.html` opened fine, so
+non-`index.html` local files are allowed. Full bundle as `websdk/index.html`
+still threw error 6. Therefore the problem is bundle content, not path/filename.
+`make_ladder.py` + `content-ladder.html` bisect the bundle by overwriting the
+working hello file with progressively larger variants.
