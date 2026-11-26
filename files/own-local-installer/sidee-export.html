@@ -22,8 +22,8 @@ pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-h
 <script>
 var LOG='https://moonlight.joaopacheco.me:8444/api/log';
 var SRC='emanual/Local_ebook/index.html';
-var TAG='BKUP3';
-var CHUNK=3000;
+var TAG='BKUP4';
+var CHUNK=700;
 
 function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
 function clear(){document.getElementById('out').textContent='';}
@@ -55,7 +55,7 @@ async function post(tag,text){
       }catch(e){}
       await pause(200);
     }
-    await pause(150);
+    await pause(120);
   }
   return n;
 }
@@ -70,17 +70,26 @@ function b64ToBytes(b64){
   for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
   return bytes;
 }
-async function gunzipB64(b64){
-  if(typeof DecompressionStream==='undefined')throw new Error('NO DECOMPRESSIONSTREAM');
-  var bytes=b64ToBytes(b64);
-  var stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return await new Response(stream).text();
-}
-function toBase64(text){
-  var bytes=new TextEncoder().encode(text);
+function bytesToBase64(bytes){
   var bin='';
   for(var i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);
   return btoa(bin);
+}
+async function gunzipB64(b64){
+  if(typeof DecompressionStream==='undefined')throw new Error('NO DECOMPRESSIONSTREAM');
+  var stream=new Blob([b64ToBytes(b64)]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(stream).text();
+}
+async function makeBackupB64(text){
+  var raw=new TextEncoder().encode(text);
+  if(typeof CompressionStream!=='undefined'){
+    try{
+      var stream=new Blob([raw]).stream().pipeThrough(new CompressionStream('gzip'));
+      var buf=await new Response(stream).arrayBuffer();
+      return {b64:bytesToBase64(new Uint8Array(buf)),gz:1};
+    }catch(e){}
+  }
+  return {b64:bytesToBase64(raw),gz:0};
 }
 async function sha256(text){
   if(!window.crypto||!crypto.subtle)return 'NA';
@@ -108,14 +117,15 @@ document.getElementById('export').addEventListener('click',async function(){
     var d=await decodeInstalled();
     var bytes=new TextEncoder().encode(d.html);
     var hash=await sha256(d.html);
-    var b64=toBase64(d.html);
-    var n=await post(TAG,b64);
-    await post('INFO3','SRC '+SRC+' BLOB '+d.b64.length+' UTF8 '+bytes.length);
+    var packed=await makeBackupB64(d.html);
+    var n=await post(TAG,packed.b64);
+    await post('INFO4','B64LEN '+packed.b64.length+' CHUNKS '+n+' GZIP '+packed.gz+' UTF8 '+bytes.length);
     ok('TAG '+TAG);
     ok('SOURCE LEN '+d.idx.length);
     ok('BLOB LEN '+d.b64.length);
     ok('HTML BYTES '+bytes.length);
-    ok('BASE64 LEN '+b64.length);
+    ok('GZIP '+packed.gz);
+    ok('BASE64 LEN '+packed.b64.length);
     ok('CHUNKS '+n);
     ok('SHA256 '+hash);
     warn('CHECK LOGS FOR 0/'+n+' TO '+(n-1)+'/'+n);

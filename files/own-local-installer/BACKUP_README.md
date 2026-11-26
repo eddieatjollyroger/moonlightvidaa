@@ -10,15 +10,16 @@ or into this repository by hand.
 - `sidee-export.html` - TV page that decodes the installed bundle and exports it
 - `sidee-localize.html` - TV page that writes the decoded app into `Local_ebook`
 - `install-ownmoon-local.html` - tile installer with backup/restore
-- `rebuild_backup.py` - rebuilds `ownmoon-local.html` from `SIDEE BKUP3` logs;
-  older `BKUP2`/`BKUP` lines are fallbacks only
+- `rebuild_backup.py` - rebuilds `ownmoon-local.html` from `SIDEE BKUP4` logs;
+  older `BKUP3`/`BKUP2`/`BKUP` lines are fallbacks only. It verifies the
+  `INFO4` base64 length before decoding.
 
 ## Export from TV
 
 Open:
 
 ```text
-https://moonlight.joaopacheco.me/own-webrtc/sidee-export.html?v=4
+https://moonlight.joaopacheco.me/own-webrtc/sidee-export.html?v=5
 ```
 
 Press:
