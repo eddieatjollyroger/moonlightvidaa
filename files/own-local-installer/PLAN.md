@@ -249,6 +249,11 @@ New files:
   `BKUP3`/`BKUP2`/`BKUP`; verifies `INFO4`, decompresses gzip, ignores empty
   chunks.
 - `BACKUP_README.md` - local repository instructions and provenance.
+- `install-ownmoon-local.html` gained button `0 WRITE FILE FROM HTTPS`: fetches
+  the rebuilt backup from the Pi web root, verifies length 79752 and SHA-256
+  `70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86`, writes
+  `emanual/Local_ebook/ownmoon-local.html` via documented `fileWrite`, then
+  reads it back and verifies again. This is the Sidee-independent restore path.
 - `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.
 
 `D2AUDIT` result: no `fetch`, no `XMLHttpRequest`, no `http://` or `https://`

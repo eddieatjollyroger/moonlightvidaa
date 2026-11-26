@@ -38,7 +38,48 @@ python3 rebuild_backup.py ~/moonlight-backup-logs.txt ~/moonlight-local-repo/own
 shasum -a 256 ~/moonlight-local-repo/ownmoon-local.html
 ```
 
-The rebuilt hash must match the TV hash.
+The rebuilt hash must match the TV hash. Current verified copy:
+
+```text
+bytes   79752
+sha256  70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86
+```
+
+## Install / restore to the TV
+
+Put the rebuilt file and the installer page on the Pi web root:
+
+```sh
+sudo cp /home/eddie/moonlightvidaa/files/own-local-installer/ownmoon-local.html /mnt/ssd1/moonlight-web/own-webrtc/ownmoon-local.html
+sudo cp /home/eddie/moonlightvidaa/files/own-local-installer/install-ownmoon-local.html /mnt/ssd1/moonlight-web/own-webrtc/install-ownmoon-local.html
+```
+
+Open on the TV:
+
+```text
+https://moonlight.joaopacheco.me/own-webrtc/install-ownmoon-local.html
+```
+
+If AppInfo is intact, press in order:
+
+```text
+0 WRITE FILE FROM HTTPS
+1 BACKUP
+3 ADD / REPOINT TILE
+4 READBACK
+```
+
+Then power-cycle the TV.
+
+If AppInfo was cleared and all tiles are gone, press `6 RESTORE APPINFO` first,
+then repeat the sequence above.
+
+Notes:
+
+- `0 WRITE FILE FROM HTTPS` verifies length and SHA-256 before and after write.
+- The Sidee tile is not touched by `3 ADD / REPOINT TILE`.
+- `5 REMOVE TILE` removes only the `ownmoon` tile.
+- `6 RESTORE APPINFO` restores from `websdk/Appinfo.json.ownbak-local`.
 
 ## Runtime notes
 
