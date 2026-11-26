@@ -21,6 +21,18 @@ variants = {
         "probe = new WebSocket(gatewayWebSocketUrl(gateway));",
         'complete("Offline"); return;',
     ),
+    "ladder-js9-nogpstart.html": BASE.replace(
+        TAIL,
+        "showHome();\nrenderGateways();\nprobeSavedGateways();",
+    ),
+    "ladder-js9-nostats.html": BASE.replace(
+        TAIL,
+        "updateTrackCounts();\ngamepadInputManager.updateDiagnostics();\nsyncGamepadUi();\nshowHome();\ngamepadUiNavigation.start();\nrenderGateways();\nprobeSavedGateways();",
+    ),
+    "ladder-js9-min.html": BASE.replace(
+        TAIL,
+        "showHome();\nrenderGateways();",
+    ),
 }
 
 for name, text in variants.items():

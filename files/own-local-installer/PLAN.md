@@ -178,4 +178,6 @@ variants now use a data image so scripts can be bisected cleanly.
 Bisect result: only `JS9` hung. JS9 is the first variant containing `app.js`.
 Most likely culprit is the startup `probeSavedGateways()` WebSocket probe to
 `ws://192.168.1.107:8000`. `make_probe_tests.py` generated NO PROBE, DEFER
-PROBE, and NO WS variants for confirmation.
+PROBE, and NO WS variants for confirmation. All three still hung, so WebSocket
+is not the cause. New variants remove `gamepadUiNavigation.start()`,
+`updateStatistics` timer, or the whole startup tail.
