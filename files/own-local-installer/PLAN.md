@@ -300,3 +300,19 @@ User asked for the UI to be fully English before packing. Added:
 
 The English app must be installed as the **packed** file. Installing
 `ownmoon-en.html` directly would recreate the earlier `error code 6`.
+
+Final pivot (2026-11-26): the TV export completed 456 chunks, but the metrics
+endpoint keeps only the last 250 log lines, so `rebuild_packed.py` cannot see
+chunks 0-206. Rather than re-export in ranges, the English bundle is now built
+on the TV itself:
+
+- `make_finalizer.py` emits `finalize-english.html` from the same `PAIRS` list
+  used by `translate_app.py`.
+- The finalizer reads the working packed clone, gunzips only the `moonlight`
+  blob, verifies the decoded source SHA, applies the exact translation map,
+  verifies the English SHA, gzip+base64-encodes it, replaces only that blob,
+  and writes `emanual/Local_ebook/ownmoon-en-packed.html` with `fileWrite`.
+- The original packed clone and Sidee files stay untouched.
+- `install-ownmoon-en.html` repoints the existing tile to the new packed file.
+  Its HTTPS-write button is disabled because no file needs to cross the wire.
+- Rollback is `6 RESTORE APPINFO` (tile points back to the original clone).

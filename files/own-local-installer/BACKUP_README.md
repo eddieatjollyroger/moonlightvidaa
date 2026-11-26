@@ -119,63 +119,69 @@ Press:
 
 The backup is `emanual/Local_ebook/ownmoon-local.html.ownbak-en`.
 
-### 2. Export the packed wrapper from the TV
+### 2. Build the English packed file on the TV
 
-Copy `packed-export.html` to the Pi web root and open:
+The metrics log only keeps the last 250 lines, so a 456-chunk export cannot be
+reassembled from one log fetch. Instead the finalizer reads the packed clone
+directly on the TV and writes one flat file. No HTTPS file hosting is needed.
+
+Generate/copy `finalize-english.html` to the Pi web root, then open:
 
 ```text
-https://moonlight.joaopacheco.me/own-webrtc/packed-export.html
+https://moonlight.joaopacheco.me/own-webrtc/finalize-english.html?v=1
 ```
 
 Press:
 
 ```text
-1 EXPORT TO LOGS
+1 BUILD + WRITE
 ```
 
-Save the `SHA` line. Then on the Mac:
-
-```sh
-curl -s http://192.168.1.69:8484/logs > ~/packed-export-logs.txt
-python3 rebuild_packed.py ~/packed-export-logs.txt ~/moonlight-web-test/backup/ownmoon-packed.html
-shasum -a 256 ~/moonlight-web-test/backup/ownmoon-packed.html
-```
-
-The rebuilt hash must match the TV `SHA` line.
-
-### 3. Re-pack the English app
-
-```sh
-python3 make_english_packed.py \
-  ~/moonlight-web-test/backup/ownmoon-packed.html \
-  ~/moonlight-web-test/backup/ownmoon-en.html \
-  ~/moonlight-web-test/backup/ownmoon-local.html \
-  ~/moonlight-web-test/backup/ownmoon-en-packed.html
-
-python3 patch_installer.py ~/moonlight-web-test/backup/ownmoon-en-packed.html
-```
-
-### 4. Install on the TV
-
-Copy `ownmoon-en-packed.html` and the patched `install-ownmoon-local.html` to
-the Pi web root, then open the installer on the TV and press:
+It verifies:
 
 ```text
-0 WRITE FILE FROM HTTPS
+OK SOURCE SHA OK 70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86
+OK ENGLISH SHA OK b53207e3e5f883266be94cc3ddbb5ba1b8738208768ad51710342c743cf1fd10
+OK FILE WRITTEN <n> BYTES
+OK SHA <final packed sha>
+```
+
+The final file is `emanual/Local_ebook/ownmoon-en-packed.html`. The original
+`ownmoon-local.html` is left untouched.
+
+### 3. Repoint the tile
+
+Copy `install-ownmoon-en.html` to the Pi web root and open:
+
+```text
+https://moonlight.joaopacheco.me/own-webrtc/install-ownmoon-en.html?v=1
+```
+
+Press:
+
+```text
 1 BACKUP
 3 ADD / REPOINT TILE
 4 READBACK
 ```
 
-Power-cycle the TV and open **OWN MOON LOCAL**.
+Button `0 WRITE FILE FROM HTTPS` is deliberately disabled in this installer.
 
-If anything fails, open `packed-backup.html` again and press:
+`4 READBACK` must show:
 
 ```text
-3 RESTORE PACKED
+file:///APPS/emanual/Local_ebook/ownmoon-en-packed.html?app=moonlight
 ```
 
-Then power-cycle the TV to return to the working Italian packed clone.
+Power-cycle the TV and open **OWN MOON LOCAL**.
+
+If anything fails, open `install-ownmoon-en.html` again and press:
+
+```text
+6 RESTORE APPINFO
+```
+
+Then power-cycle the TV to return the tile to the working Italian packed clone.
 
 ## Legacy: decoded-file install / restore (do not use for normal install)
 

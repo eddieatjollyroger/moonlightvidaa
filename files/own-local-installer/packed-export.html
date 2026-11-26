@@ -25,7 +25,7 @@ var SRC='emanual/Local_ebook/ownmoon-local.html';
 var TAG='PACK1';
 var CHUNK=700;
 
-function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);return d;}
 function clear(){document.getElementById('out').textContent='';}
 function ok(s){out('OK '+s,'ok');}
 function bad(s){out('FAIL '+s,'bad');}
@@ -46,13 +46,21 @@ function pause(ms){return new Promise(function(r){setTimeout(r,ms);});}
 async function post(tag,text){
   var s=String(text==null?'':text);
   var n=Math.max(1,Math.ceil(s.length/CHUNK));
+  var status=out('POST '+tag+' 0/'+n+' START','warn');
   for(var i=0;i<n;i++){
     var payload='SIDEE '+tag+' '+i+'/'+n+' '+s.slice(i*CHUNK,(i+1)*CHUNK);
+    var sent=false;
     for(var attempt=0;attempt<2;attempt++){
-      try{await fetch(LOG,{method:'POST',body:payload,mode:'no-cors',keepalive:true});break;}catch(e){}
-      await pause(200);
+      var ctl=new AbortController();
+      var timer=setTimeout(function(){ctl.abort();},2500);
+      try{await fetch(LOG,{method:'POST',body:payload,mode:'no-cors',signal:ctl.signal});sent=true;break;}
+      catch(e){}
+      finally{clearTimeout(timer);}
+      await pause(300);
     }
-    await pause(120);
+    if(!sent)throw new Error('POST TIMEOUT '+tag+' '+(i+1)+'/'+n);
+    if(i===0||(i+1)%25===0||i+1===n)status.textContent='POST '+tag+' '+(i+1)+'/'+n;
+    await pause(100);
   }
   return n;
 }
@@ -82,17 +90,20 @@ function head(text,n){return text.slice(0,n||80).replace(/\s+/g,' ');}
 
 document.getElementById('export').addEventListener('click',async function(){
   clear();
+  out('START EXPORT '+SRC,'warn');
   try{
     var text=read(SRC);
+    out('READ OK','warn');
     var bytes=new TextEncoder().encode(text);
+    out('BYTES '+bytes.length,'warn');
     var packed=await gzipBytes(bytes);
+    out('GZIP '+packed.gz,'warn');
     var encoded=b64(packed.bytes);
+    out('B64LEN '+encoded.length,'warn');
     var hash=await sha256(text);
+    out('SHA '+hash,'warn');
     var n=await post(TAG,encoded);
     await post('PACKINFO','GZIP '+packed.gz+' B64LEN '+encoded.length+' CHUNKS '+n+' BYTES '+bytes.length+' SHA '+hash);
-    ok('BYTES '+bytes.length);
-    ok('GZIP '+packed.gz);
-    ok('B64LEN '+encoded.length);
     ok('CHUNKS '+n);
     ok('SHA '+hash);
     warn('CHECK LOGS FOR SIDEE PACKINFO');
