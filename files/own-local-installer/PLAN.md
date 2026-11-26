@@ -198,3 +198,13 @@ the reader was looking for the wrong thing. `sidee-read2.html` extracts the
 `moonlight` gzip+base64 blob and decompresses it in-page with
 `DecompressionStream('gzip')`, then logs `D2HEAD`, `D2TAIL`, `D2URLS`, `D2SUM`.
 No Sidee code is copied into our client; this is read-only comparison.
+
+Sidee protocol difference: decoded app connects directly to Sunshine-Web-RTC with
+`ws://host:port`, `authenticate` + PIN, then `offer`/`answer` with
+`RTCPeerConnection({iceServers:[]})`. Our `app.js` instead expects a custom
+gateway with `gateway-status`, `apps`, `start-session`. Even after the load hang
+is fixed, our client must be rewritten to speak Sunshine directly.
+
+`make_errlog.py` + `ladder-js9-errlog.html` add `MLDBG BEFORE APP`, `AFTER APP`,
+`ONERROR`, `ERREV`, and `REJECT` markers around `app.js`. This should distinguish
+a parse/runtime exception from an infinite startup loop.
