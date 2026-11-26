@@ -40,6 +40,18 @@ Use `probe.html` from this folder on the TV. It detects the bridge and reads
   The bridge has no documented `mkdir`, so new nested directories cannot be created.
 - Writing flat `websdk/ownmoon-probe.txt` succeeded: `ret:true`; readback returned
   `ret:true msg OWN STAGING TEST OK 20261126`.
+- AppInfo install succeeded and tile appeared, but opening it threw `error code 6`.
+  The user had not mains power-cycled the TV.
+- `inspect.html` showed the working Sidee entry uses
+  `file:///APPS/emanual/Local_ebook/index.html?app=moonlight`, `StoreType=hisense`,
+  no `Type`; our entry used `file:///APPS/websdk/ownmoon.html?...`,
+  `StoreType=custom`, `Type=Browser`.
+- Query string was removed from our tile URL as the first fix; needs verification
+  after a real power cycle.
+- User gave explicit sign-off to try the E-Manual lane if the no-query `websdk`
+  path still fails. `install-ownmoon-emanual.html` writes one new flat file to
+  `emanual/Local_ebook/ownmoon.html` (never touches Sidee's `index.html`) and
+  registers a Sidee-like entry: `StoreType:hisense`, no `Type`, no query.
 - Therefore the bundle must be a **single flat file**:
   `websdk/ownmoon.html`, not `websdk/ownmoon/index.html`.
   `make_bundle.py` in this folder inlines all JS/CSS into that one file.
@@ -138,3 +150,6 @@ Not allowed:
 - `install-ownmoon.html` - app-level installer using only documented mode-6
   `fileRead`/`fileWrite`. Buttons: backup, write bundle, add tile, readback,
   remove tile, restore.
+- `inspect.html` - read-only dump of Moon-related AppInfo entries.
+- `install-ownmoon-emanual.html` - same installer, but stages the flat bundle
+  into the existing E-Manual folder and uses a Sidee-like local URL.

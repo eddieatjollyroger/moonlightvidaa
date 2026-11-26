@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Own Moon E-Manual Installer</title>
+<style>
+body{background:#111;color:#eee;font:18px sans-serif;margin:24px}
+h1{font-size:28px}
+button{font:18px sans-serif;margin:4px 6px 4px 0;padding:8px 12px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:180px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>OWN MOON EMANUAL INSTALLER</h1>
+<p>APP LEVEL. NO ROOT. NO OAD. USES EXISTING EMANUAL FOLDER.</p>
+<div>
+<button id="backup">1 BACKUP</button>
+<button id="test">2 TEST PATH</button>
+<button id="write">3 WRITE BUNDLE</button>
+<button id="add">4 ADD TILE</button>
+<button id="read">5 READBACK</button>
+<button id="remove">6 REMOVE TILE</button>
+<button id="restore">7 RESTORE</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var APPINFO='websdk/Appinfo.json';
+var BAK='websdk/Appinfo.json.ownbak-install';
+var DIR='emanual/Local_ebook/';
+var BUNDLE=DIR+'ownmoon.html';
+var TEST=DIR+'ownmoon-probe.txt';
+var APP_ID='ownmoon';
+var TILE_URL='file:///APPS/emanual/Local_ebook/ownmoon.html';
+var ICON='https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function parseAppinfo(text){
+  var d=JSON.parse(text);
+  if(Array.isArray(d))d={AppInfo:d};
+  if(!d.AppInfo||!Array.isArray(d.AppInfo))d.AppInfo=[];
+  return d;
+}
+function readAppinfo(){
+  var r=call('fileRead',{path:APPINFO,mode:6});
+  if(!isOk(r))throw new Error('APPINFO READ '+JSON.stringify(r).slice(0,300));
+  var t=body(r);if(!t)throw new Error('APPINFO NO BODY');
+  return parseAppinfo(t);
+}
+function writeAppinfo(data){
+  var r=call('fileWrite',{path:APPINFO,mode:6,writedata:JSON.stringify(data)});
+  if(!isOk(r))throw new Error('APPINFO WRITE '+JSON.stringify(r).slice(0,300));
+}
+function newEntry(){
+  return {
+    Id:APP_ID,
+    AppId:APP_ID,
+    AppName:'Own Moon',
+    Title:'Own Moon',
+    URL:TILE_URL,
+    StartCommand:TILE_URL,
+    IconURL:ICON,
+    Icon_96:ICON,
+    Image:ICON,
+    Thumb:ICON,
+    InstallTime:'2026-11-26',
+    RunTimes:0,
+    StoreType:'hisense',
+    PreInstall:false
+  };
+}
+
+document.getElementById('backup').addEventListener('click',function(){
+  clear();
+  try{
+    var b=call('fileRead',{path:BAK,mode:6});
+    if(isOk(b)){warn('BACKUP EXISTS - SKIP');return;}
+    var r=call('fileRead',{path:APPINFO,mode:6});
+    if(!isOk(r))throw new Error('READ '+JSON.stringify(r).slice(0,300));
+    var t=body(r);if(!t)throw new Error('NO BODY');
+    var w=call('fileWrite',{path:BAK,mode:6,writedata:t});
+    if(!isOk(w))throw new Error('WRITE '+JSON.stringify(w).slice(0,300));
+    ok('BACKUP MADE');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('test').addEventListener('click',function(){
+  clear();
+  try{
+    var w=call('fileWrite',{path:TEST,mode:6,writedata:'OWN EMANUAL PATH OK 20261126'});
+    if(!isOk(w))throw new Error('WRITE '+JSON.stringify(w).slice(0,300));
+    var r=call('fileRead',{path:TEST,mode:6});
+    if(!isOk(r))throw new Error('READ '+JSON.stringify(r).slice(0,300));
+    ok('PATH OK '+body(r));
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('write').addEventListener('click',async function(){
+  clear();
+  try{
+    var res=await fetch('ownmoon.html?raw=2',{cache:'no-store'});
+    if(!res.ok)throw new Error('FETCH HTTP '+res.status);
+    var text=await res.text();
+    ok('FETCH '+text.length);
+    if(text.indexOf('<script')<0||text.indexOf('moonlight')<0)throw new Error('BAD BUNDLE');
+    var w=call('fileWrite',{path:BUNDLE,mode:6,writedata:text});
+    if(!isOk(w))throw new Error('WRITE '+JSON.stringify(w).slice(0,300));
+    var v=call('fileRead',{path:BUNDLE,mode:6});
+    if(!isOk(v))throw new Error('VERIFY '+JSON.stringify(v).slice(0,300));
+    ok('BUNDLE WRITTEN '+body(v).length);
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('add').addEventListener('click',function(){
+  clear();
+  try{
+    var v=call('fileRead',{path:BUNDLE,mode:6});
+    if(!isOk(v)||!body(v))throw new Error('NO BUNDLE - WRITE FIRST');
+    var data=readAppinfo();
+    var list=data.AppInfo;
+    var idx=-1;
+    for(var i=0;i<list.length;i++){
+      if(list[i]&&(list[i].Id===APP_ID||String(list[i].URL||'').indexOf('ownmoon')>=0)){idx=i;break;}
+    }
+    if(idx>=0)list[idx]=newEntry();else list.push(newEntry());
+    writeAppinfo(data);
+    ok('TILE ADDED COUNT '+list.length);
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('read').addEventListener('click',function(){
+  clear();
+  try{
+    var data=readAppinfo();
+    ok('COUNT '+data.AppInfo.length);
+    var found=false;
+    for(var i=0;i<data.AppInfo.length;i++){
+      var a=data.AppInfo[i];
+      if(a&&a.Id===APP_ID){found=true;ok('ID OWNMOON URL '+String(a.URL||'').slice(0,140));break;}
+    }
+    if(!found)bad('ID OWNMOON NOT FOUND');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('remove').addEventListener('click',function(){
+  clear();
+  try{
+    var data=readAppinfo();
+    var before=data.AppInfo.length;
+    data.AppInfo=data.AppInfo.filter(function(a){return !(a&&(a.Id===APP_ID||String(a.URL||'').indexOf('ownmoon')>=0));});
+    writeAppinfo(data);
+    ok('TILE REMOVED '+before+' TO '+data.AppInfo.length);
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('restore').addEventListener('click',function(){
+  clear();
+  try{
+    var b=call('fileRead',{path:BAK,mode:6});
+    if(!isOk(b))throw new Error('NO BACKUP');
+    var t=body(b);if(!t)throw new Error('NO BODY');
+    var w=call('fileWrite',{path:APPINFO,mode:6,writedata:t});
+    if(!isOk(w))throw new Error('RESTORE '+JSON.stringify(w).slice(0,300));
+    ok('RESTORED');
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>
