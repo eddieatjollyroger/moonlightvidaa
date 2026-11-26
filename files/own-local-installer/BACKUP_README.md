@@ -47,7 +47,15 @@ sha256  70e4fec39cd0b8f6c3d9945f35c9b13072152f2e7c5c58ae3c6e9264995e3e86
 
 ## Install / restore to the TV
 
-Put the rebuilt file and the installer page on the Pi web root:
+First copy the rebuilt file and updated installer from the Mac to the Pi home:
+
+```sh
+scp ~/moonlight-web-test/backup/ownmoon-local.html \
+    ~/moonlight-web-test/files/own-local-installer/install-ownmoon-local.html \
+    eddie@192.168.1.69:/home/eddie/moonlightvidaa/files/own-local-installer/
+```
+
+Then, on the Pi, copy them into the web root:
 
 ```sh
 sudo cp /home/eddie/moonlightvidaa/files/own-local-installer/ownmoon-local.html /mnt/ssd1/moonlight-web/own-webrtc/ownmoon-local.html
