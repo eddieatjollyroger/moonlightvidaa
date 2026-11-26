@@ -72,7 +72,14 @@ function findSidee(list){
 function findOwn(list){
   for(var i=0;i<list.length;i++){
     var a=list[i];if(!a)continue;
-    if(a.Id===APP_ID||String(a.URL||'').indexOf('ownmoon-local')>=0)return a;
+    var id=String(a.Id||'');
+    var mid=String(a.mediaId||'');
+    var u=String(a.URL||'');
+    var name=String(a.AppName||'');
+    var icon=String(a.IconURL||'');
+    if(id==='ownmoon'||id.indexOf('moonlight-ownlocal')===0||
+       mid.indexOf('moonlight-ownlocal')===0||u.indexOf('ownmoon-local')>=0||
+       name.indexOf('Own Moon')>=0||icon.indexOf('moonlight.joaopacheco.me')>=0)return a;
   }
   return null;
 }
@@ -104,6 +111,9 @@ document.getElementById('dump').addEventListener('click',async function(){
     var s=findSidee(data.AppInfo),o=findOwn(data.AppInfo);
     await post('SIDEE',JSON.stringify(s||{}));
     await post('OWN',JSON.stringify(o||{}));
+    await post('LIST',data.AppInfo.map(function(a){
+      return String(a&&a.Id||'?')+' '+String(a&&a.URL||'');
+    }).join('\n'));
     ok('COUNT '+data.AppInfo.length);
     ok('SIDEE '+(s?'FOUND':'MISSING'));
     ok('OWN '+(o?'FOUND':'MISSING'));
