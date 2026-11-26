@@ -380,22 +380,32 @@ Sidee's Moonlight bundle appears to be mostly packaging around the open-source
 `192.168.1.107:8000`, 1080p default, VIDAA back keys, fullscreen, and `MLOWN`
 stats. The low-latency host is still `OpenstreamCo/Sunshine-Web-RTC` on the PC.
 
-The client is served by its own small read-only container on Pi port `8485`.
-TubeTV is **not** changed or rebuilt. URL:
+The client is served by the **existing** `moonlight-web` container from a new
+read-only mount under `/mnt/ssd1/moonlight-web/own-webrtc`. No extra container,
+no TubeTV rebuild, no self-signed warning. URL:
 
 ```
-http://192.168.1.69:8485/?host=192.168.1.107&port=8000&v=1
+https://moonlight.joaopacheco.me/own-webrtc/?host=192.168.1.107&port=8000&v=1
+```
+
+Add this one line under `moonlight-web:` -> `volumes:` in the Pi's
+`/mnt/ssd1/moonlight-web/docker-compose.yml` (it is already in the local
+`docker-compose.yml` template):
+
+```yaml
+      - /mnt/ssd1/moonlight-web/own-webrtc:/moonlight-web/static/own-webrtc:ro
 ```
 
 Run these yourself (the assistant must not SSH to the Pi or run deploy scripts):
 
 ```sh
 # from the Mac
-ssh eddie@192.168.1.69 'mkdir -p ~/own-webrtc ~/own-webrtc-serve'
-scp -r ~/moonlight-web-test/files/own-webrtc/. eddie@192.168.1.69:~/own-webrtc/
-scp ~/moonlight-web-test/files/own-webrtc-compose.yml eddie@192.168.1.69:~/own-webrtc-serve/docker-compose.yml
-ssh eddie@192.168.1.69 'cd ~/own-webrtc-serve && docker compose up -d'
-curl -fsSI http://192.168.1.69:8485/ | head
+ssh eddie@192.168.1.69 'mkdir -p /mnt/ssd1/moonlight-web/own-webrtc'
+scp -r ~/moonlight-web-test/files/own-webrtc/. eddie@192.168.1.69:/mnt/ssd1/moonlight-web/own-webrtc/
+scp ~/moonlight-web-test/files/own-local-installer/probe.html eddie@192.168.1.69:/mnt/ssd1/moonlight-web/own-webrtc/probe.html
+ssh eddie@192.168.1.69 'cd /mnt/ssd1/moonlight-web && docker compose up -d --force-recreate moonlight-web'
+curl -fsSI https://moonlight.joaopacheco.me/own-webrtc/ | head
+curl -fsSI https://moonlight.joaopacheco.me/own-webrtc/probe.html | head
 ```
 
 Bump `v=1` in the tile URL and in `index.html` when replacing client files, so

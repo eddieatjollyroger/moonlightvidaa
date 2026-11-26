@@ -26,6 +26,8 @@ services:
       - /mnt/ssd1/moonlight-web/static/stream.html:/moonlight-web/static/stream.html:ro
       # TV-sized UI + arrow-key/OK navigation (injected into index.html)
       - /mnt/ssd1/moonlight-web/static/index.html:/moonlight-web/static/index.html:ro
+      # Own Moonlight WebRTC client + read-only VIDAA install probe
+      - /mnt/ssd1/moonlight-web/own-webrtc:/moonlight-web/static/own-webrtc:ro
     deploy:
       resources:
         limits:

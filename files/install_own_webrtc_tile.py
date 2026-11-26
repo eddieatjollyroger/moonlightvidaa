@@ -7,16 +7,16 @@ Copy this file into the Sidee folder containing core.py / sidee.py and run:
 On the TV: Edit Home and tick the new "Own Moonlight" tile. To undo it, untick
 the tile in Edit Home; nothing native is installed.
 
-The tile points at a separate tiny static container on the Pi, so TubeTV is
-untouched and the URL stays LAN-only:
-    http://192.168.1.69:8485/?host=192.168.1.107&port=8000&v=1
+The tile is served by the existing moonlight-web container from the mounted
+`own-webrtc` folder, over the trusted Moonlight HTTPS domain:
+    https://moonlight.joaopacheco.me/own-webrtc/?host=192.168.1.107&port=8000&v=1
 """
 from core import client
 
 APP_ID = "ownwebrtc"
 NAME = "Own Moonlight"
-URL = "http://192.168.1.69:8485/?host=192.168.1.107&port=8000&v=1"
-ICON = "http://192.168.1.69:8485/assets/moonlight-icon.png"
+URL = "https://moonlight.joaopacheco.me/own-webrtc/?host=192.168.1.107&port=8000&v=1"
+ICON = "https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png"
 
 session = client.Session.load()
 apps = client.add_tile(session, APP_ID, NAME, URL, ICON)
