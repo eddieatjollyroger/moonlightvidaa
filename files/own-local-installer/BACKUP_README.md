@@ -70,7 +70,7 @@ Press:
 Then power-cycle the TV. The tile can stay pointed at:
 
 ```text
-file:///APPS/emanual/Local_ebook/ownmoon-local.html
+file:///APPS/emanual/Local_ebook/ownmoon-local.html?app=moonlight
 ```
 
 Do not press `0 WRITE FILE FROM HTTPS` afterward; that would overwrite the
