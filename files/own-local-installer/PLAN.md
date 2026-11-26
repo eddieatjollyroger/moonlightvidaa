@@ -174,3 +174,8 @@ Ladder result: `4 NO IMAGE` (full JS, data image) got past error 6 but left the
 **TV spinner** — the browser never finished loading. So the HTTPS logo image
 caused error 6, and one of the JS files likely causes the spinner. All JS ladder
 variants now use a data image so scripts can be bisected cleanly.
+
+Bisect result: only `JS9` hung. JS9 is the first variant containing `app.js`.
+Most likely culprit is the startup `probeSavedGateways()` WebSocket probe to
+`ws://192.168.1.107:8000`. `make_probe_tests.py` generated NO PROBE, DEFER
+PROBE, and NO WS variants for confirmation.
