@@ -236,7 +236,16 @@ New files:
 - `install-ownmoon-local.html` - backs up AppInfo, repoints `Id: ownmoon` to
   `file:///APPS/emanual/Local_ebook/ownmoon-local.html`, with readback/remove/
   restore. Sidee entry itself is untouched.
-- `sidee-export.html` - base64-exports `ownmoon-local.html` to `SIDEE BKUP`
-  log chunks, with SHA-256.
+- `sidee-export.html` - decodes installed `index.html` and base64-exports the
+  decoded Moonlight HTML to `SIDEE BKUP` log chunks, with SHA-256. It no longer
+  depends on `ownmoon-local.html` existing; this fixes the observed
+  `FAIL READ ... ownmoon-local.html` when the localize step did not write.
 - `rebuild_backup.py` - rebuilds the exact HTML from a raw logs dump.
+- `BACKUP_README.md` - local repository instructions and provenance.
 - `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.
+
+`D2AUDIT` result: no `fetch`, no `XMLHttpRequest`, no `http://` or `https://`
+endpoint in the decoded Moonlight app. Only `ws://` to Sunshine-Web-RTC on the
+LAN, plus `window.localStorage` for host/quality prefs. The
+`sidee-install-token` meta appears but no JS reads it in the decoded blob. The
+local copy does not depend on a Sidee server at runtime.

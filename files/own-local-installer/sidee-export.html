@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Export Local Moonlight Backup</title>
+<title>Export Sidee Moonlight Backup</title>
 <style>
 body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
 h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
@@ -12,16 +12,16 @@ pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-h
 </style>
 </head>
 <body>
-<h1>EXPORT LOCAL MOONLIGHT BACKUP</h1>
-<p>READ ONLY FROM TV. BASE64 GOES TO EXISTING METRICS LOG.</p>
+<h1>EXPORT SIDEE MOONLIGHT BACKUP</h1>
+<p>DECODES INSTALLED BUNDLE. BASE64 GOES TO EXISTING METRICS LOG.</p>
 <div>
 <button id="export">1 EXPORT TO LOGS</button>
-<button id="verify">2 VERIFY LOCAL</button>
+<button id="verify">2 VERIFY SOURCE</button>
 </div>
 <pre id="out">READY</pre>
 <script>
 var LOG='https://moonlight.joaopacheco.me:8444/api/log';
-var FILE='emanual/Local_ebook/ownmoon-local.html';
+var SRC='emanual/Local_ebook/index.html';
 
 function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
 function clear(){document.getElementById('out').textContent='';}
@@ -51,6 +51,23 @@ function post(tag,text){
   }
   return n;
 }
+function extract(text,key){
+  var re=new RegExp('"'+key+'"\\s*:\\s*"([A-Za-z0-9+/=]{100,})"');
+  var m=re.exec(text);
+  return m?m[1]:null;
+}
+function b64ToBytes(b64){
+  var bin=atob(b64);
+  var bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+async function gunzipB64(b64){
+  if(typeof DecompressionStream==='undefined')throw new Error('NO DECOMPRESSIONSTREAM');
+  var bytes=b64ToBytes(b64);
+  var stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(stream).text();
+}
 function toBase64(text){
   var bytes=new TextEncoder().encode(text);
   var bin='';
@@ -66,16 +83,29 @@ async function sha256(text){
   for(var i=0;i<arr.length;i++)hex+=('0'+arr[i].toString(16)).slice(-2);
   return hex;
 }
+function head(text,n){return text.slice(0,n||100).replace(/\s+/g,' ');}
+
+async function decodeInstalled(){
+  var idx=read(SRC);
+  var b64=extract(idx,'moonlight');
+  if(!b64)throw new Error('NO MOONLIGHT BLOB');
+  var html=await gunzipB64(b64);
+  if(html.indexOf('<html')<0||html.indexOf('Moonlight')<0)throw new Error('DECODE LOOKS WRONG');
+  return {idx:idx,b64:b64,html:html};
+}
 
 document.getElementById('export').addEventListener('click',async function(){
   clear();
   try{
-    var html=read(FILE);
-    if(html.indexOf('<html')<0)throw new Error('LOCAL FILE MISSING');
-    var hash=await sha256(html);
-    var b64=toBase64(html);
+    var d=await decodeInstalled();
+    var bytes=new TextEncoder().encode(d.html);
+    var hash=await sha256(d.html);
+    var b64=toBase64(d.html);
     var n=post('BKUP',b64);
-    ok('HTML BYTES '+html.length);
+    post('BKUPINFO','SRC '+SRC+' BLOB '+d.b64.length+' UTF8 '+bytes.length);
+    ok('SOURCE LEN '+d.idx.length);
+    ok('BLOB LEN '+d.b64.length);
+    ok('HTML BYTES '+bytes.length);
     ok('BASE64 LEN '+b64.length);
     ok('CHUNKS '+n);
     ok('SHA256 '+hash);
@@ -83,12 +113,13 @@ document.getElementById('export').addEventListener('click',async function(){
   }catch(e){bad(e.message);}
 });
 
-document.getElementById('verify').addEventListener('click',function(){
+document.getElementById('verify').addEventListener('click',async function(){
   clear();
   try{
-    var html=read(FILE);
-    ok('LOCAL LEN '+html.length);
-    ok('HEAD '+html.slice(0,120).replace(/\s+/g,' '));
+    var d=await decodeInstalled();
+    ok('SOURCE LEN '+d.idx.length);
+    ok('DECODED LEN '+d.html.length);
+    ok('HEAD '+head(d.html,120));
   }catch(e){bad(e.message);}
 });
 </script>
