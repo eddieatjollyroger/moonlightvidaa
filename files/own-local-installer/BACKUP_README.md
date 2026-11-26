@@ -76,6 +76,9 @@ file:///APPS/emanual/Local_ebook/ownmoon-local.html?app=moonlight
 Do not press `0 WRITE FILE FROM HTTPS` afterward; that would overwrite the
 packed copy with the decoded app again.
 
+The tile entry mirrors Sidee's shape: no `AppId`, plus `configUrl`,
+`configUrlDownload`, and `mediaId`. Its Id is `moonlight-ownlocal0001`.
+
 ## Fallback: decoded-file install / restore
 
 First copy the rebuilt file and updated installer from the Mac to the Pi home:

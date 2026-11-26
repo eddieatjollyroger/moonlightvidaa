@@ -264,7 +264,10 @@ New files:
   still gave error code 6 because the tile URL omitted `?app=moonlight`; the
   packed index has both `moonlight` and `emu` blobs and needs that query to
   select the Moonlight app and finish the ready handshake. Installer `TILE_URL`
-  now includes `?app=moonlight`.
+  now includes `?app=moonlight`. `APPDIF` dump showed our entry also lacked
+  `configUrl`, `configUrlDownload`, and `mediaId`, and had an extra `AppId`.
+  Installer entry now mirrors Sidee's shape with Id/mediaId
+  `moonlight-ownlocal0001`; Sidee's own entry is untouched.
 - `sidee-read2.html` now also logs `D2AUDIT` for network/token/licence checks.
 
 `D2AUDIT` result: no `fetch`, no `XMLHttpRequest`, no `http://` or `https://`

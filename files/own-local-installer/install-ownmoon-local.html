@@ -29,7 +29,7 @@ pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-h
 var APPINFO='websdk/Appinfo.json';
 var BAK='websdk/Appinfo.json.ownbak-local';
 var FILE='emanual/Local_ebook/ownmoon-local.html';
-var APP_ID='ownmoon';
+var APP_ID='moonlight-ownlocal0001';
 var TILE_URL='file:///APPS/emanual/Local_ebook/ownmoon-local.html?app=moonlight';
 var ICON='https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png';
 var BACKUP_URL='https://moonlight.joaopacheco.me/own-webrtc/ownmoon-local.html';
@@ -78,15 +78,17 @@ function writeAppinfo(data){write(APPINFO,JSON.stringify(data));}
 function newEntry(){
   return {
     Id:APP_ID,
-    AppId:APP_ID,
-    AppName:'Own Moon Local',
-    Title:'Own Moon Local',
-    URL:TILE_URL,
-    StartCommand:TILE_URL,
-    IconURL:ICON,
+    Thumb:ICON,
     Icon_96:ICON,
     Image:ICON,
-    Thumb:ICON,
+    URL:TILE_URL,
+    AppName:'Own Moon Local',
+    Title:'Own Moon Local',
+    configUrl:'',
+    configUrlDownload:0,
+    mediaId:APP_ID,
+    IconURL:ICON,
+    StartCommand:TILE_URL,
     InstallTime:'2026-11-26',
     RunTimes:0,
     StoreType:'hisense',
