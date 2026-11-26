@@ -29,7 +29,7 @@ var APPINFO='websdk/Appinfo.json';
 var BAK='websdk/Appinfo.json.ownbak-install';
 var BUNDLE='websdk/ownmoon.html';
 var APP_ID='ownmoon';
-var TILE_URL='file:///APPS/websdk/ownmoon.html?host=192.168.1.107&port=8000&v=1';
+var TILE_URL='file:///APPS/websdk/ownmoon.html';
 var ICON='https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png';
 
 function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
@@ -62,6 +62,7 @@ function writeAppinfo(data){
 function newEntry(){
   return {
     Id:APP_ID,
+    AppId:APP_ID,
     AppName:'Own Moon',
     Title:'Own Moon',
     URL:TILE_URL,

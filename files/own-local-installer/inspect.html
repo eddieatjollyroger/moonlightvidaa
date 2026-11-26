@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Own Moon Inspect</title>
+<style>
+body{background:#111;color:#eee;font:18px sans-serif;margin:24px}
+h1{font-size:28px}button{font:18px sans-serif;padding:8px 12px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:160px}
+.ok{color:#7f7}.bad{color:#f77}
+</style>
+</head>
+<body>
+<h1>OWN MOON INSPECT - READ ONLY</h1>
+<button id="go">SHOW MOON ENTRIES</button>
+<pre id="out">READY</pre>
+<script>
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function show(a){
+  var keys=['Id','AppId','AppName','Title','URL','StartCommand','Type','StoreType','UrlType','PreInstall','IconURL'];
+  var parts=[];
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i];
+    if(Object.prototype.hasOwnProperty.call(a,k))parts.push(k+'='+String(a[k]).slice(0,140));
+  }
+  out(parts.join(' | '),'ok');
+}
+document.getElementById('go').addEventListener('click',function(){
+  clear();
+  try{
+    if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+    var r=HiUtils_createRequest('fileRead',{path:'websdk/Appinfo.json',mode:6});
+    if(!r||!r.ret)throw new Error('READ '+JSON.stringify(r).slice(0,300));
+    if(typeof r.msg!=='string')throw new Error('NO BODY');
+    var d=JSON.parse(r.msg);
+    var list=Array.isArray(d)?d:(d.AppInfo||[]);
+    out('COUNT '+list.length,'ok');
+    var n=0;
+    for(var i=0;i<list.length;i++){
+      var a=list[i];
+      var s=JSON.stringify(a||{}).toLowerCase();
+      if(s.indexOf('moon')>=0||s.indexOf('ownmoon')>=0){show(a);n++;}
+    }
+    if(!n)out('NO MOON ENTRIES','bad');
+  }catch(e){out('FAIL '+e.message,'bad');}
+});
+</script>
+</body>
+</html>

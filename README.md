@@ -472,6 +472,29 @@ Conclusion: with free Sidee we can register HTTP(S) tiles only. A truly local
 app-level file-write lane. That is still not root/bricking territory, but it is
 not a free, zero-write path.
 
+### Own local installer - documented app-level lane (2026-11-26)
+
+Our TV leaves the vendor file bridge open, so we can use the app-level lane
+directly, without Sidee+. It is documented/vendor-exposed, not root:
+
+- `HiUtils_createRequest('fileRead'/'fileWrite', {path, mode:6})`
+- `mode: 6` maps to `/APPS/`
+- backup: `websdk/Appinfo.json.ownbak-20261126`
+- nested writes fail with `ENOENT` because there is no documented `mkdir`
+- solution: one flat file `websdk/ownmoon.html`, built by `files/own-local-installer/make_bundle.py`
+- flat write/read probe verified: `ret:true` and `OWN STAGING TEST OK 20261126`
+
+The installer is `files/own-local-installer/install-ownmoon.html`. It writes the
+178 KB single-file bundle, then merges one `Id: ownmoon` Browser entry into
+`/APPS/websdk/Appinfo.json` pointing at:
+
+```text
+file:///APPS/websdk/ownmoon.html?host=192.168.1.107&port=8000&v=1
+```
+
+Icons stay on HTTPS. The installer has explicit backup, readback, remove, and
+restore buttons. It needs a TV restart before the launcher refreshes its app list.
+
 ## Step 4 - trusted cert via Docker certbot (recommended for the Home tile)
 
 A Sidee tile cannot accept the self-signed warning. This uses only containers:

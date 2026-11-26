@@ -38,6 +38,8 @@ Use `probe.html` from this folder on the TV. It detects the bridge and reads
 - Backup to `websdk/Appinfo.json.ownbak-20261126` returned `ret:true`.
 - Writing `websdk/ownmoon/probe.txt` failed with `errno -2 ENOENT syscall open`.
   The bridge has no documented `mkdir`, so new nested directories cannot be created.
+- Writing flat `websdk/ownmoon-probe.txt` succeeded: `ret:true`; readback returned
+  `ret:true msg OWN STAGING TEST OK 20261126`.
 - Therefore the bundle must be a **single flat file**:
   `websdk/ownmoon.html`, not `websdk/ownmoon/index.html`.
   `make_bundle.py` in this folder inlines all JS/CSS into that one file.
