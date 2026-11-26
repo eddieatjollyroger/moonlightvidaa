@@ -153,3 +153,13 @@ Not allowed:
 - `inspect.html` - read-only dump of Moon-related AppInfo entries.
 - `install-ownmoon-emanual.html` - same installer, but stages the flat bundle
   into the existing E-Manual folder and uses a Sidee-like local URL.
+- `local-path-test.html` - writes a tiny `ownhello.html` tile to prove whether
+  any non-`index.html` local file can open.
+- `install-ownmoon-index.html` - stages the bundle as flat `websdk/index.html`
+  and points the tile at `file:///APPS/websdk/index.html`.
+
+E-Manual result: URL and `StoreType` matched Sidee, but error code 6 remained.
+User also removed two older Moonlight tiles; current count 11. The pasted
+`inspect` line appeared to show `AppId=ownmoon` without `Id=ownmoon`, but the
+user confirmed that was TV/OCR mangling; `Id` is intact. Next tests isolate
+whether the launcher requires an `index.html` filename.

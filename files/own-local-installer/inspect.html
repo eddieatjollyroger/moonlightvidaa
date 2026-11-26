@@ -21,6 +21,8 @@ function clear(){document.getElementById('out').textContent='';}
 function show(a){
   var keys=['Id','AppId','AppName','Title','URL','StartCommand','Type','StoreType','UrlType','PreInstall','IconURL'];
   var parts=[];
+  parts.push('HASID='+(a&&a.Id?'Y':'N'));
+  parts.push('HASAPPID='+(a&&a.AppId?'Y':'N'));
   for(var i=0;i<keys.length;i++){
     var k=keys[i];
     if(Object.prototype.hasOwnProperty.call(a,k))parts.push(k+'='+String(a[k]).slice(0,140));

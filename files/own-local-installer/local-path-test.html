@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local Path Test</title>
+<style>
+body{background:#111;color:#eee;font:18px sans-serif;margin:24px}
+h1{font-size:28px}button{font:18px sans-serif;margin:4px 6px 4px 0;padding:8px 12px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:160px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>LOCAL PATH TEST - READ/WRITE</h1>
+<p>APP LEVEL. TINY TEST PAGE. NO ROOT. NO SIDE EDIT.</p>
+<div>
+<button id="write">1 WRITE HELLO</button>
+<button id="add">2 ADD TEST TILE</button>
+<button id="read">3 READBACK</button>
+<button id="remove">4 REMOVE TEST TILE</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var APPINFO='websdk/Appinfo.json';
+var TEST_PATH='emanual/Local_ebook/ownhello.html';
+var TEST_ID='ownhello';
+var TEST_URL='file:///APPS/emanual/Local_ebook/ownhello.html';
+var ICON='https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function readAppinfo(){
+  var r=call('fileRead',{path:APPINFO,mode:6});
+  if(!isOk(r))throw new Error('APPINFO READ '+JSON.stringify(r).slice(0,300));
+  var t=body(r);if(!t)throw new Error('NO BODY');
+  var d=JSON.parse(t);
+  if(Array.isArray(d))d={AppInfo:d};
+  if(!d.AppInfo||!Array.isArray(d.AppInfo))d.AppInfo=[];
+  return d;
+}
+function writeAppinfo(d){
+  var r=call('fileWrite',{path:APPINFO,mode:6,writedata:JSON.stringify(d)});
+  if(!isOk(r))throw new Error('APPINFO WRITE '+JSON.stringify(r).slice(0,300));
+}
+function entry(){
+  return {
+    Id:TEST_ID,
+    AppId:TEST_ID,
+    AppName:'Own Hello',
+    Title:'Own Hello',
+    URL:TEST_URL,
+    StartCommand:TEST_URL,
+    IconURL:ICON,
+    Icon_96:ICON,
+    Image:ICON,
+    Thumb:ICON,
+    InstallTime:'2026-11-26',
+    RunTimes:0,
+    StoreType:'hisense',
+    PreInstall:false
+  };
+}
+
+document.getElementById('write').addEventListener('click',function(){
+  clear();
+  try{
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>OK LOCAL</title></head>'
+      +'<body style="background:#111;color:#7f7;font:48px sans-serif;padding:40px">OK LOCAL PATH</body></html>';
+    var w=call('fileWrite',{path:TEST_PATH,mode:6,writedata:html});
+    if(!isOk(w))throw new Error('WRITE '+JSON.stringify(w).slice(0,300));
+    var v=call('fileRead',{path:TEST_PATH,mode:6});
+    if(!isOk(v))throw new Error('READ '+JSON.stringify(v).slice(0,300));
+    ok('HELLO WRITTEN '+body(v).length);
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('add').addEventListener('click',function(){
+  clear();
+  try{
+    var d=readAppinfo();
+    var idx=-1;
+    for(var i=0;i<d.AppInfo.length;i++){
+      if(d.AppInfo[i]&&(d.AppInfo[i].Id===TEST_ID||String(d.AppInfo[i].URL||'').indexOf('ownhello')>=0)){idx=i;break;}
+    }
+    if(idx>=0)d.AppInfo[idx]=entry();else d.AppInfo.push(entry());
+    writeAppinfo(d);
+    ok('TEST TILE ADDED COUNT '+d.AppInfo.length);
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('read').addEventListener('click',function(){
+  clear();
+  try{
+    var d=readAppinfo();
+    ok('COUNT '+d.AppInfo.length);
+    var found=false;
+    for(var i=0;i<d.AppInfo.length;i++){
+      var a=d.AppInfo[i];
+      if(a&&(a.Id===TEST_ID||a.AppId===TEST_ID)){
+        found=true;
+        ok('ID='+String(a.Id||'-')+' APPID='+String(a.AppId||'-')+' URL='+String(a.URL||'').slice(0,140));
+      }
+    }
+    if(!found)bad('TEST TILE NOT FOUND');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('remove').addEventListener('click',function(){
+  clear();
+  try{
+    var d=readAppinfo();
+    var before=d.AppInfo.length;
+    d.AppInfo=d.AppInfo.filter(function(a){return !(a&&(a.Id===TEST_ID||a.AppId===TEST_ID||String(a.URL||'').indexOf('ownhello')>=0));});
+    writeAppinfo(d);
+    ok('TEST TILE REMOVED '+before+' TO '+d.AppInfo.length);
+    warn('POWER CYCLE TV');
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>
