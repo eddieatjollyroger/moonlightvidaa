@@ -217,3 +217,8 @@ call. Only VIDAA keycodes and the Sidee install-token meta. So no vendor ready
 signal explains the spinner. `ladder-js9-loadlog.html` now logs `LOAD`, `HB1`,
 `HB4` with `readyState`, `visibilityState`, home/launch/stream hidden states, and
 `activeElement`, to see whether the page is alive behind the launcher spinner.
+`LOADLOG` result: `home=SHOWN launch=HIDDEN stream=HIDDEN focus=BUTTON`, but
+`ready=interactive` and no `LOAD` event. So our UI is visible; the launcher
+spinner is an overlay waiting for `load`, which never fires. Remaining resource
+tags are two malformed data-URI GIFs and `<video autoplay>`.
+`make_resource_tests.py` produces GOODGIF, NOIMG, and NOAUTO variants.
