@@ -275,3 +275,28 @@ endpoint in the decoded Moonlight app. Only `ws://` to Sunshine-Web-RTC on the
 LAN, plus `window.localStorage` for host/quality prefs. The
 `sidee-install-token` meta appears but no JS reads it in the decoded blob. The
 local copy does not depend on a Sidee server at runtime.
+
+User asked for the UI to be fully English before packing. Added:
+- `translate_app.py` - explicit Italian-to-English replacements for user-visible
+  HTML text, ARIA labels, toast/error/pairing/library/stream strings, stats
+  labels, and Italian CSS comments. It deliberately leaves protocol types,
+  localStorage keys, the install-token meta, and the packed wrapper untouched.
+  Output `backup/ownmoon-en.html` is 79503 bytes, SHA-256
+  `b53207e3e5f883266be94cc3ddbb5ba1b8738208768ad51710342c743cf1fd10`; no
+  Italian terms remain and the extracted JS passes `node --check`.
+- `packed-backup.html` - makes `emanual/Local_ebook/ownmoon-local.html.ownbak-en`
+  from the working packed clone and can restore it with button 3.
+- `packed-export.html` - gzips and base64-exports the full packed wrapper in
+  `SIDEE PACK1` 700-char log chunks plus `PACKINFO` gzip/length/count/bytes/SHA.
+- `rebuild_packed.py` - gunzips, validates, and reassembles those chunks, then
+  verifies base64 length, byte length, and SHA-256 before writing
+  `ownmoon-packed.html`.
+- `make_english_packed.py` - verifies the packed `moonlight` blob decodes to the
+  original decoded HTML, gzip+base64-encodes the English HTML, replaces only
+  that blob, verifies the round-trip, and asserts the `emu` blob and wrapper
+  outside the blob are byte-identical.
+- `patch_installer.py` - points installer button `0` at
+  `ownmoon-en-packed.html` with the final byte length and SHA-256.
+
+The English app must be installed as the **packed** file. Installing
+`ownmoon-en.html` directly would recreate the earlier `error code 6`.

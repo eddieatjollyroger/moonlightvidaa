@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta name="sidee-install-token" content="v1.moonlight.1798225849039.981f033df69b3abb9b63ffa73cec3c4bc59b7fefb4d53324df2ff46a42cfa336">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moonlight</title>
+<style>
+  :root{
+    --bg:#08070f; --bg2:#12101f; --panel:#181528; --panel2:#211d36;
+    --text:#f3f0ff; --muted:#a89fc4; --line:#332c52;
+    --accent:#a78bfa; --ok:#5ee0a0; --bad:#ff7b8a; --focus:#c4b5fd;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+  body{background:
+    radial-gradient(1200px 700px at 78% -10%, rgba(124,92,255,.28), transparent 60%),
+    radial-gradient(900px 600px at 8% 110%, rgba(94,224,160,.10), transparent 65%),
+    var(--bg)}
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+  .app{position:fixed;inset:0;display:flex;flex-direction:column}
+  .top{display:flex;align-items:center;gap:18px;padding:22px 40px 8px;flex:0 0 auto}
+  .mark{width:44px;height:44px;border-radius:50%;position:relative;
+    background:linear-gradient(145deg,#efeaff,#b9a6ff);box-shadow:0 0 34px rgba(167,139,250,.35)}
+  .mark:after{content:"";position:absolute;right:-8px;top:-6px;width:38px;height:38px;border-radius:50%;
+    background:var(--bg)}
+  .brand{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .brand small{display:block;font-size:12px;font-weight:600;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--muted)}
+  .spacer{flex:1}
+  .pill{font-size:14px;font-weight:700;padding:9px 16px;border-radius:999px;
+    background:rgba(124,92,255,.16);border:1px solid rgba(167,139,250,.35);color:#ddd3ff}
+  .pill.ok{background:rgba(94,224,160,.12);border-color:rgba(94,224,160,.4);color:var(--ok)}
+  .pill.bad{background:rgba(255,123,138,.12);border-color:rgba(255,123,138,.4);color:var(--bad)}
+  main{flex:1;min-height:0;position:relative}
+  .view{position:absolute;inset:0;padding:10px 40px 44px;display:flex;flex-direction:column;overflow:auto}
+  .view[hidden]{display:none}
+  h1{font-size:clamp(34px,4.4vw,58px);line-height:1.02;margin:8px 0 12px;letter-spacing:-.03em}
+  h1 em{font-style:normal;color:var(--accent)}
+  .lead{font-size:clamp(17px,1.45vw,22px);line-height:1.45;color:var(--muted);max-width:1000px;margin:0 0 26px}
+  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .field{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:16px;padding:6px 6px 6px 18px;min-width:min(560px,86vw)}
+  .field label{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .field input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:var(--text);
+    font-size:clamp(20px,1.8vw,26px);font-weight:700;letter-spacing:.02em;padding:14px 0}
+  .field input::placeholder{color:#6f678c;font-weight:600}
+  .field.active{border-color:rgba(167,139,250,.65);box-shadow:0 0 0 3px rgba(196,181,253,.18)}
+  .field input.focusable:focus{outline:none;transform:none}
+  /* The remote has no keyboard: this keypad is the only way to enter
+     the address using only OK/arrows. Four columns, base 1280 layout
+     scaled to the viewport (the measured webview is 1920x1080). */
+  .keypad{display:grid;grid-template-columns:repeat(4,64px);gap:10px;margin-top:18px;max-width:340px}
+  .keypad .key{padding:0;height:50px;font-size:21px;font-weight:800;border-radius:12px}
+  .keypad .key.wide{grid-column:span 2;width:auto;font-size:17px}
+  .addrHint{margin-top:12px;font-size:15px;color:var(--ok);font-family:ui-monospace,Consolas,monospace}
+  .addrHint[hidden]{display:none}
+  .btn{display:inline-flex;align-items:center;gap:10px;justify-content:center;
+    border-radius:16px;padding:16px 26px;font-size:19px;font-weight:800;
+    background:var(--panel2);border:1px solid var(--line);transition:transform .12s ease}
+  .btn.primary{background:linear-gradient(180deg,#8b6dff,#6f4fe6);border-color:transparent;
+    box-shadow:0 14px 34px rgba(111,79,230,.32)}
+  .btn.ghost{background:transparent}
+  .btn:disabled{opacity:.45}
+  .focusable:focus{outline:3px solid var(--focus);outline-offset:4px;transform:scale(1.02)}
+  .hint{margin-top:22px;font-size:16px;line-height:1.55;color:var(--muted);max-width:1000px}
+  .hint b{color:#e7defc}
+  .hosts{display:flex;flex-direction:column;gap:12px;margin:26px 0 4px;max-width:900px}
+  .host{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--line);
+    border-radius:18px;padding:14px 16px}
+  .host .dot{width:10px;height:10px;border-radius:50%;background:#5f5878}
+  .host .name{font-size:20px;font-weight:800}
+  .host .addr{font-size:15px;color:var(--muted);font-family:ui-monospace,Consolas,monospace}
+  .host .grow{flex:1;min-width:0}
+  .host .btn{padding:12px 18px;font-size:16px}
+  .error{margin-top:16px;color:#ffd0d6;background:rgba(255,123,138,.12);border:1px solid rgba(255,123,138,.35);
+    border-radius:14px;padding:14px 18px;font-size:16px;max-width:1000px}
+  .error[hidden]{display:none}
+  .pair{display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap;margin-top:10px}
+  .pinbox{background:linear-gradient(180deg,#241f40,#151226);border:1px solid #3c3462;border-radius:26px;
+    padding:30px 44px;text-align:center;min-width:330px}
+  .pinbox .cap{font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+  .pin{font-size:clamp(66px,9vw,110px);font-weight:900;letter-spacing:.16em;line-height:1;
+    margin:14px 0 6px;color:#fff;text-shadow:0 0 40px rgba(167,139,250,.45);font-variant-numeric:tabular-nums}
+  .steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:16px;max-width:620px}
+  .steps li{display:flex;gap:14px;font-size:18px;line-height:1.45;color:#d9d2ee}
+  .steps b{display:inline-flex;width:30px;height:30px;flex:0 0 auto;align-items:center;justify-content:center;
+    border-radius:50%;background:rgba(167,139,250,.18);color:#d8caff;font-size:15px}
+  .libTop{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 20px}
+  .libTop .pc{font-size:22px;font-weight:800}
+  .libTop .state{font-size:15px;color:var(--muted)}
+  .libTop .btn{padding:13px 20px;font-size:16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px;padding-bottom:28px}
+  .tile{position:relative;background:linear-gradient(180deg,var(--panel),#100e1b);
+    border:1px solid var(--line);border-radius:20px;overflow:hidden;text-align:left;
+    display:flex;flex-direction:column;transition:transform .12s ease}
+  .tile .art{aspect-ratio:16/10;background:#171328;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;position:relative}
+  .tile .art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .tile .letter{font-size:54px;font-weight:900;color:#4b4270}
+  .tile .meta{padding:12px 16px 16px}
+  .tile .title{font-size:18px;font-weight:800;line-height:1.2;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .tile .sub{margin-top:6px;font-size:13px;color:var(--muted)}
+  .tile .running{position:absolute;top:10px;right:10px;background:rgba(94,224,160,.16);
+    border:1px solid rgba(94,224,160,.45);color:var(--ok);font-size:12px;font-weight:800;
+    padding:5px 10px;border-radius:999px}
+  .tile:focus{outline:3px solid var(--focus);outline-offset:4px}
+  .tile:focus .art:after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 4px var(--focus)}
+  .empty{margin:40px 0;font-size:19px;color:var(--muted)}
+  .stream{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center}
+  .stream[hidden]{display:none}
+  .stream video{width:100%;height:100%;object-fit:contain;background:#000}
+  .overlay{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;
+    justify-content:space-between;padding:26px 34px;opacity:0;transition:opacity .2s ease}
+  .overlay.show{opacity:1}
+  .chip{align-self:flex-start;background:rgba(10,8,20,.78);border:1px solid rgba(167,139,250,.35);
+    border-radius:999px;padding:10px 18px;font-size:16px;font-weight:700;color:#e9e2ff}
+  .overlay .bottom{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+  .stats{background:rgba(10,8,20,.78);border:1px solid rgba(255,255,255,.12);border-radius:16px;
+    padding:14px 18px;font-family:ui-monospace,Consolas,monospace;font-size:14px;line-height:1.6;color:#cfc7e6;
+    white-space:pre;min-width:300px}
+  .stats[hidden]{display:none}
+  .tip{background:rgba(10,8,20,.78);border:1px solid rgba(255,255,255,.12);border-radius:14px;
+    padding:12px 16px;font-size:15px;color:#d8d2ea}
+  .tap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(4,3,10,.55)}
+  .tap[hidden]{display:none}
+  .tap .btn{font-size:22px;padding:20px 34px}
+  .launch{position:absolute;inset:0;display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;
+    background:#08070f;text-align:center;padding:40px}
+  .launch[hidden]{display:none}
+  .launch .spinner{width:64px;height:64px;border-radius:50%;border:5px solid #2a2445;border-top-color:var(--accent);
+    animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .launch .stage{font-size:24px;font-weight:800}
+  .launch .app{font-size:17px;color:var(--muted)}
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+    background:#241f3d;border:1px solid #463c72;border-radius:16px;padding:16px 22px;font-size:17px;
+    max-width:min(900px,86vw);opacity:0;transition:.2s ease;pointer-events:none;z-index:40}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+  .toast.bad{background:#3a1c26;border-color:#7a3446}
+  .foot{position:absolute;left:40px;right:40px;bottom:14px;display:flex;justify-content:space-between;
+    font-size:13px;color:#6f678c;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="mark" aria-hidden="true"></div>
+    <div class="brand">Moonlight<small>Local</small></div>
+    <div class="spacer"></div>
+    <div class="pill" id="connPill">Not connected</div>
+  </div>
+
+  <main>
+    <section class="view" id="viewConnect">
+      <h1>Your PC, <em>on your TV</em>.</h1>
+      <p class="lead">Moonlight streams games from your PC to your TV. Your PC needs
+        <b>Sunshine-Web-RTC</b> with the WebRTC server enabled (port 8000). The TV and PC must be
+        on the same local network.</p>
+
+      <div class="row">
+        <div class="field" id="addrField">
+          <label for="addr">PC</label>
+          <input id="addr" class="focusable" type="text" inputmode="none" readonly autocomplete="off" spellcheck="false"
+                 placeholder="192.168.1.20:8000" aria-label="PC address">
+        </div>
+        <button class="btn primary focusable" id="connectBtn">Connect</button>
+        <button class="btn ghost focusable" id="refreshBtn" hidden>Reconnect</button>
+      </div>
+      <div class="addrHint" id="addrHint" hidden></div>
+      <div class="keypad" id="keypad" role="group" aria-label="Address keypad">
+        <button class="btn key focusable" data-key="1">1</button>
+        <button class="btn key focusable" data-key="2">2</button>
+        <button class="btn key focusable" data-key="3">3</button>
+        <button class="btn key focusable" data-key="back" aria-label="Delete last character">⌫</button>
+        <button class="btn key focusable" data-key="4">4</button>
+        <button class="btn key focusable" data-key="5">5</button>
+        <button class="btn key focusable" data-key="6">6</button>
+        <button class="btn key focusable" data-key=".">.</button>
+        <button class="btn key focusable" data-key="7">7</button>
+        <button class="btn key focusable" data-key="8">8</button>
+        <button class="btn key focusable" data-key="9">9</button>
+        <button class="btn key focusable" data-key=":">:</button>
+        <button class="btn key focusable wide" data-key="0">0</button>
+        <button class="btn key focusable wide" data-key="clear">Clear</button>
+      </div>
+
+      <div class="hosts" id="hosts"></div>
+      <div class="error" id="connectError" hidden></div>
+
+      <p class="hint">Enter the address with the <b>on-screen keypad</b> (arrows + OK) or with the
+        remote's number keys; <b>:</b> adds the port when it is not 8000.
+        The first time, the PC shows a PIN: enter it in Sunshine under <b>PIN</b>.
+        After the first pairing, the TV connects automatically. The remote works as a controller
+        (arrows, OK, Back). <b>No extra TV installation is needed.</b></p>
+      <div class="foot"><span>Moonlight Local</span><span id="verLine"></span></div>
+    </section>
+
+    <section class="view" id="viewPair" hidden>
+      <h1>Enter the PIN <em>in Sunshine</em>.</h1>
+      <div class="pair">
+        <div class="pinbox">
+          <div class="cap">Pairing PIN</div>
+          <div class="pin" id="pin">0000</div>
+          <div id="pairState" style="font-size:15px;color:#a89fc4">Waiting for the PC…</div>
+        </div>
+        <ol class="steps">
+          <li><b>1</b><span>Open Sunshine on the PC: <b>Web UI</b>, <b>PIN</b> page.</span></li>
+          <li><b>2</b><span>Select this TV in the list and enter the PIN shown here.</span></li>
+          <li><b>3</b><span>Confirm: the TV connects and shows your PC games.</span></li>
+        </ol>
+      </div>
+      <div class="row" style="margin-top:34px">
+        <button class="btn primary focusable" id="newPinBtn">New PIN</button>
+        <button class="btn ghost focusable" id="cancelPairBtn">Cancel</button>
+      </div>
+      <div class="error" id="pairError" hidden></div>
+      <div class="foot"><span>The PIN expires after 5 minutes</span><span></span></div>
+    </section>
+
+    <section class="view" id="viewLibrary" hidden>
+      <div class="libTop">
+        <div>
+          <div class="pc" id="pcName">PC</div>
+          <div id="pcState" style="font-size:15px;color:#a89fc4">Connected</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn focusable" id="qualityBtn">Quality: 1080p · 20 Mbps</button>
+        <button class="btn ghost focusable" id="changePcBtn">Cambia PC</button>
+      </div>
+      <div class="grid" id="apps"></div>
+      <div class="empty" id="appsEmpty" hidden>The PC has no apps in Sunshine yet.</div>
+      <div class="foot"><span id="libHint">OK starts · Back returns to PCs</span><span id="libBuild"></span></div>
+    </section>
+  </main>
+</div>
+
+<div class="stream" id="stream" hidden>
+  <video id="video" playsinline autoplay></video>
+  <div class="overlay" id="overlay">
+    <div class="chip" id="streamChip">Connecting…</div>
+    <div class="bottom">
+      <div class="stats" id="stats" hidden></div>
+      <div class="tip">Back = exit · the game stays open on the PC</div>
+    </div>
+  </div>
+  <div class="tap" id="tap" hidden>
+    <button class="btn primary focusable" id="tapBtn">Press OK for audio</button>
+  </div>
+  <div class="launch" id="launch" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="stage" id="launchStage">Preparing…</div>
+    <div class="app" id="launchApp"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var VERSION = "1.1.0";
+  var PROTOCOL = 2;
+  var DEFAULT_PORT = 8000;
+  var STORE_KEY = "sidee.moonlight.v1";
+  var PROOF_LABEL = "moonlight-webrtc-tv-auth-v1:";
+  var CONNECT_TIMEOUT_MS = 9000;
+  var PAIR_TIMEOUT_MS = 300000;
+  var ADDRESS_MAX_LEN = 80;
+
+  function $(id) { return document.getElementById(id); }
+  var el = {
+    pill: $("connPill"), addr: $("addr"), addrField: $("addrField"), addrHint: $("addrHint"),
+    keypad: $("keypad"), connectBtn: $("connectBtn"), refreshBtn: $("refreshBtn"),
+    hosts: $("hosts"), connectError: $("connectError"), pairError: $("pairError"),
+    viewConnect: $("viewConnect"), viewPair: $("viewPair"), viewLibrary: $("viewLibrary"),
+    pin: $("pin"), pairState: $("pairState"), newPinBtn: $("newPinBtn"), cancelPairBtn: $("cancelPairBtn"),
+    pcName: $("pcName"), pcState: $("pcState"), apps: $("apps"), appsEmpty: $("appsEmpty"),
+    qualityBtn: $("qualityBtn"), changePcBtn: $("changePcBtn"), libHint: $("libHint"), libBuild: $("libBuild"),
+    stream: $("stream"), video: $("video"), overlay: $("overlay"), streamChip: $("streamChip"),
+    stats: $("stats"), tap: $("tap"), tapBtn: $("tapBtn"), launch: $("launch"),
+    launchStage: $("launchStage"), launchApp: $("launchApp"), toast: $("toast"), verLine: $("verLine")
+  };
+
+  /* ---------------------------------------------------------------- store */
+
+  var memoryState = null;
+  var prefs = null;
+
+  function readPrefs() {
+    try {
+      var raw = window.localStorage.getItem(STORE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return memoryState || { hosts: [], quality: null };
+  }
+
+  function writePrefs() {
+    memoryState = prefs;
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(prefs)); } catch (e) {}
+  }
+
+  prefs = readPrefs();
+  if (!prefs || typeof prefs !== "object") prefs = { hosts: [], quality: null };
+  if (!Array.isArray(prefs.hosts)) prefs.hosts = [];
+
+  /* ------------------------------------------------------- sha256 / hmac */
+
+  var K256 = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+
+  function rotr(value, bits) { return (value >>> bits) | (value << (32 - bits)); }
+
+  function sha256Bytes(bytes) {
+    var length = bytes.length;
+    var total = ((length + 9 + 63) >> 6) << 6;
+    var padded = new Uint8Array(total);
+    padded.set(bytes);
+    padded[length] = 0x80;
+    var view = new DataView(padded.buffer);
+    view.setUint32(total - 8, Math.floor(length / 536870912));
+    view.setUint32(total - 4, (length << 3) >>> 0);
+    var h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var w = new Uint32Array(64);
+    for (var offset = 0; offset < total; offset += 64) {
+      var i;
+      for (i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4);
+      for (i = 16; i < 64; i++) {
+        var x = w[i - 15], y = w[i - 2];
+        var s0 = (rotr(x, 7) ^ rotr(x, 18) ^ (x >>> 3)) >>> 0;
+        var s1 = (rotr(y, 17) ^ rotr(y, 19) ^ (y >>> 10)) >>> 0;
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], k = h[7];
+      for (i = 0; i < 64; i++) {
+        var S1 = (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) >>> 0;
+        var ch = ((e & f) ^ ((~e) & g)) >>> 0;
+        var t1 = (k + S1 + ch + K256[i] + w[i]) >>> 0;
+        var S0 = (rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) >>> 0;
+        var maj = ((a & b) ^ (a & c) ^ (b & c)) >>> 0;
+        var t2 = (S0 + maj) >>> 0;
+        k = g; g = f; f = e; e = (d + t1) >>> 0;
+        d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      h[0] = (h[0] + a) >>> 0; h[1] = (h[1] + b) >>> 0; h[2] = (h[2] + c) >>> 0; h[3] = (h[3] + d) >>> 0;
+      h[4] = (h[4] + e) >>> 0; h[5] = (h[5] + f) >>> 0; h[6] = (h[6] + g) >>> 0; h[7] = (h[7] + k) >>> 0;
+    }
+    var out = new Uint8Array(32);
+    var outView = new DataView(out.buffer);
+    for (var j = 0; j < 8; j++) outView.setUint32(j * 4, h[j]);
+    return out;
+  }
+
+  function hmacSha256(keyBytes, messageBytes) {
+    var blockKey = keyBytes.length > 64 ? sha256Bytes(keyBytes) : keyBytes;
+    var inner = new Uint8Array(64 + messageBytes.length);
+    var outer = new Uint8Array(96);
+    for (var i = 0; i < 64; i++) {
+      var keyByte = i < blockKey.length ? blockKey[i] : 0;
+      inner[i] = keyByte ^ 0x36;
+      outer[i] = keyByte ^ 0x5c;
+    }
+    inner.set(messageBytes, 64);
+    outer.set(sha256Bytes(inner), 64);
+    return sha256Bytes(outer);
+  }
+
+  function hexToBytes(value) {
+    var bytes = new Uint8Array(value.length / 2);
+    for (var i = 0; i < bytes.length; i++) bytes[i] = parseInt(value.substr(i * 2, 2), 16);
+    return bytes;
+  }
+
+  function bytesToHex(bytes) {
+    var out = "";
+    for (var i = 0; i < bytes.length; i++) out += (bytes[i] < 16 ? "0" : "") + bytes[i].toString(16);
+    return out;
+  }
+
+  function asciiBytes(value) {
+    var bytes = new Uint8Array(value.length);
+    for (var i = 0; i < value.length; i++) bytes[i] = value.charCodeAt(i) & 0xff;
+    return bytes;
+  }
+
+  function isHex(value, byteLength) {
+    return typeof value === "string" && value.length === byteLength * 2 && /^[0-9a-f]+$/.test(value);
+  }
+
+  function authProof(clientSecret, nonce) {
+    if (!isHex(clientSecret, 32) || !isHex(nonce, 32)) throw new Error("Invalid credentials or nonce");
+    return bytesToHex(hmacSha256(hexToBytes(clientSecret), asciiBytes(PROOF_LABEL + nonce)));
+  }
+
+  function validCredentials(clientId, clientSecret) {
+    return isHex(clientId, 16) && isHex(clientSecret, 32);
+  }
+
+  /* ------------------------------------------------------------------ sdp */
+
+  function sdpNewline(sdp) { return sdp.indexOf("\r\n") >= 0 ? "\r\n" : "\n"; }
+
+  // Audio and video share one media stream in Sunshine's offer; WebRTC then
+  // holds every frame back to keep lip sync. Splitting the audio stream ends
+  // that wait, which is what a game needs (Moonlight never syncs either).
+  function separateAudioSync(sdp) {
+    if (typeof sdp !== "string") return sdp;
+    var nl = sdpNewline(sdp);
+    var inAudio = false;
+    return sdp.split(nl).map(function (line) {
+      if (line.indexOf("m=") === 0) {
+        inAudio = line.indexOf("m=audio") === 0;
+        return line;
+      }
+      if (!inAudio) return line;
+      return line
+        .replace(/^(a=msid:)(\S+)/, function (m, prefix, stream) {
+          return prefix + (stream === "-" || stream.slice(-6) === "-audio" ? stream : stream + "-audio");
+        })
+        .replace(/^(a=ssrc:\d+ msid:)(\S+)/, function (m, prefix, stream) {
+          return prefix + (stream === "-" || stream.slice(-6) === "-audio" ? stream : stream + "-audio");
+        });
+    }).join(nl);
+  }
+
+  // Samsung's imageattr attributes make Chromium reject the offer.
+  function stripImageattr(sdp) {
+    if (typeof sdp !== "string") return sdp;
+    var nl = sdpNewline(sdp);
+    return sdp.split(nl).filter(function (line) { return line.indexOf("a=imageattr:") !== 0; }).join(nl);
+  }
+
+  // Chromium decodes Opus as mono unless its own answer says stereo=1. Find
+  // the payload type the offer gave Opus, then patch that exact fmtp line.
+  function ensureStereoOpus(sdp) {
+    if (typeof sdp !== "string") return sdp;
+    var nl = sdpNewline(sdp);
+    var lines = sdp.split(nl);
+    var inAudio = false;
+    var opusType = "";
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.indexOf("m=") === 0) {
+        inAudio = line.indexOf("m=audio") === 0;
+        opusType = "";
+        continue;
+      }
+      if (!inAudio) continue;
+      var rtpmap = /^a=rtpmap:(\d+) opus\/48000\//i.exec(line);
+      if (rtpmap) opusType = rtpmap[1];
+    }
+    if (!opusType) return sdp;
+    for (var j = 0; j < lines.length; j++) {
+      if (lines[j].indexOf("a=fmtp:" + opusType + " ") === 0 && lines[j].indexOf("stereo=1") < 0) {
+        lines[j] += ";stereo=1";
+        break;
+      }
+    }
+    return lines.join(nl);
+  }
+
+  /* ---------------------------------------------------------------- state */
+
+  var state = {
+    ws: null, host: "", port: DEFAULT_PORT, name: "", authorized: false,
+    creds: null, apps: [], caps: null, qualities: [], quality: null,
+    pin: "", pinTimer: null, pairing: false, connectTimer: null, greeted: false,
+    addressPrefilled: false,
+    pc: null, sessionId: 0, remoteStream: null, pendingCandidates: [],
+    streaming: false, stage: "", exitRequested: false,
+    overlayTimer: null, statsTimer: null, watchdog: null, lastFrames: -1, stalled: 0,
+    remotePad: { controllerId: 1, seq: 0, state: null, announced: false },
+    pads: {}, padTimer: null, lastPlayError: 0, bytes: 0, bytesAt: 0, bitrate: 0,
+    logLines: []
+  };
+
+  function logLine(text) {
+    var line = new Date().toISOString().slice(11, 19) + " " + text;
+    state.logLines.push(line);
+    if (state.logLines.length > 100) state.logLines.shift();
+    try { console.log("[moonlight] " + text); } catch (e) {}
+  }
+
+  function setPill(text, kind) {
+    el.pill.textContent = text;
+    el.pill.className = "pill" + (kind ? " " + kind : "");
+  }
+
+  function toast(text, bad, ms) {
+    el.toast.textContent = text;
+    el.toast.className = "toast show" + (bad ? " bad" : "");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(function () { el.toast.className = "toast"; }, ms || 4200);
+  }
+
+  function showConnectError(text) {
+    el.connectError.textContent = text || "";
+    el.connectError.hidden = !text;
+  }
+
+  function showPairError(text) {
+    el.pairError.textContent = text || "";
+    el.pairError.hidden = !text;
+  }
+
+  /* ------------------------------------------------------------- addresses */
+
+  function parseAddress(raw) {
+    var value = String(raw || "").trim();
+    if (!value) return null;
+    value = value.replace(/^[a-z]+:\/\//i, "").replace(/\/.*$/, "");
+    var host = value, port = DEFAULT_PORT;
+    var match = /^\[([0-9a-fA-F:.]+)\](?::(\d{1,5}))?$/.exec(value) || /^([^:]{1,253})(?::(\d{1,5}))?$/.exec(value);
+    if (!match) return null;
+    host = match[1];
+    if (match[2]) port = Number(match[2]);
+    if (!/^[A-Za-z0-9.-]+$/.test(host) || host.length > 253) return null;
+    // A dotted label that ends or starts with a dot, or has an empty label, is not
+    // a host the TV can dial. Each numeric label must fit in an IPv4 octet.
+    if (host.charAt(0) === "." || host.charAt(host.length - 1) === "." || host.indexOf("..") >= 0) return null;
+    if (/^\d+(\.\d+){3}$/.test(host) && host.split(".").some(function (part) { return Number(part) > 255; })) return null;
+    if (!(port >= 1 && port <= 65535)) return null;
+    return { host: host, port: port };
+  }
+
+  /* The remote has no keyboard: every address edit goes through this function so
+     the keypad, the number keys and the input behave the same way. It refuses the
+     edits that would make an address that can never parse ("..", 256, two ports). */
+  function appendAddressKey(value, key) {
+    var text = String(value == null ? "" : value);
+    var pressed = String(key == null ? "" : key);
+    if (pressed === "back") return text.slice(0, -1);
+    if (pressed === "clear") return "";
+    if (!/^[0-9.:]$/.test(pressed) || text.length >= ADDRESS_MAX_LEN) return text;
+    var colon = text.indexOf(":");
+    if (pressed === ":") {
+      if (colon >= 0 || !text) return text;
+      return text + ":";
+    }
+    if (colon >= 0) {
+      var port = text.slice(colon + 1);
+      if (pressed === "." || port.length >= 5) return text;
+      return text + pressed;
+    }
+    var ipLike = /^[0-9.]*$/.test(text);
+    var octets = text.split(".");
+    var current = octets[octets.length - 1];
+    if (pressed === ".") {
+      if (!ipLike || !text || octets.length >= 4 || !current) return text;
+      return text + ".";
+    }
+    if (!/^[0-9]$/.test(pressed)) return text;
+    // Hostnames keep letters and hyphens; only IP-shaped text gets octet limits.
+    if (!ipLike) return text + pressed;
+    if (octets.length === 4 && current.length >= 3) return text;
+    var next = current + pressed;
+    if (next.length > 3 || Number(next) > 255) return text;
+    return text + pressed;
+  }
+
+  function renderAddressHint() {
+    if (!el.addrHint) return;
+    var parsed = parseAddress(el.addr.value);
+    if (!parsed) {
+      el.addrHint.hidden = true;
+      el.addrHint.textContent = "";
+      return;
+    }
+    el.addrHint.textContent = addressLabel(parsed.host, parsed.port) + " · port " + parsed.port;
+    el.addrHint.hidden = false;
+  }
+
+  function applyAddressKey(key) {
+    var pressed = String(key == null ? "" : key);
+    // The field is prefilled with the last address: the first digit starts a new
+    // one instead of appending to "192.168.1.20" until it stops parsing.
+    if (state.addressPrefilled && /^[0-9]$/.test(pressed)) el.addr.value = "";
+    state.addressPrefilled = false;
+    el.addr.value = appendAddressKey(el.addr.value, pressed);
+    renderAddressHint();
+  }
+
+  function addressLabel(host, port) { return host + (port === DEFAULT_PORT ? "" : ":" + port); }
+
+  function findSaved(host, port) {
+    for (var i = 0; i < prefs.hosts.length; i++) {
+      if (prefs.hosts[i].host === host && Number(prefs.hosts[i].port) === Number(port)) return prefs.hosts[i];
+    }
+    return null;
+  }
+
+  function rememberHost(entry) {
+    var existing = findSaved(entry.host, entry.port);
+    if (existing) {
+      existing.name = entry.name || existing.name;
+      existing.clientId = entry.clientId || existing.clientId;
+      existing.clientSecret = entry.clientSecret || existing.clientSecret;
+      existing.usedAt = Date.now();
+    } else {
+      prefs.hosts.push({
+        host: entry.host, port: entry.port, name: entry.name || "",
+        clientId: entry.clientId || "", clientSecret: entry.clientSecret || "", usedAt: Date.now()
+      });
+    }
+    prefs.hosts.sort(function (a, b) { return Number(b.usedAt || 0) - Number(a.usedAt || 0); });
+    writePrefs();
+    renderHosts();
+  }
+
+  function forgetHost(host, port) {
+    prefs.hosts = prefs.hosts.filter(function (h) { return !(h.host === host && Number(h.port) === Number(port)); });
+    writePrefs();
+    renderHosts();
+  }
+
+  function renderHosts() {
+    el.hosts.innerHTML = "";
+    prefs.hosts.slice(0, 4).forEach(function (saved) {
+      var row = document.createElement("div");
+      row.className = "host";
+      var dot = document.createElement("div"); dot.className = "dot";
+      var grow = document.createElement("div"); grow.className = "grow";
+      var name = document.createElement("div"); name.className = "name";
+      name.textContent = saved.name || "PC";
+      var addr = document.createElement("div"); addr.className = "addr";
+      addr.textContent = addressLabel(saved.host, saved.port);
+      grow.appendChild(name); grow.appendChild(addr);
+      var open = document.createElement("button");
+      open.className = "btn primary focusable";
+      open.textContent = "Connect";
+      open.addEventListener("click", function () { connect(saved.host, Number(saved.port)); });
+      var remove = document.createElement("button");
+      remove.className = "btn ghost focusable";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", function () { forgetHost(saved.host, saved.port); });
+      row.appendChild(dot); row.appendChild(grow); row.appendChild(open); row.appendChild(remove);
+      el.hosts.appendChild(row);
+    });
+  }
+
+  /* ------------------------------------------------------------- websocket */
+
+  function socketUrl(host, port) {
+    // Sunshine-Web-RTC signals in clear text on the LAN. A page loaded over
+    // https cannot open that socket (mixed content), which is why the app is
+    // meant to run from the installed tile (file origin), not from /a/.
+    return "ws://" + host + ":" + port;
+  }
+
+  // The TV webview has no Local Network Access (VIDAA is Chromium 111), so a
+  // secure page can never open ws:// to the PC. Say the two origins that work
+  // instead of failing silently.
+  function blockedOriginHint() {
+    return "The page is served over HTTPS and the PC uses unencrypted WebSocket (ws://), " +
+      "so the browser blocks the connection. Open Moonlight from the TV tile, " +
+      "or open this page over http:// from the PC (PC address and port 8000).";
+  }
+
+  function send(message) {
+    if (!state.ws || state.ws.readyState !== 1) throw new Error("Not connected to PC");
+    message.version = PROTOCOL;
+    state.ws.send(JSON.stringify(message));
+  }
+
+  function sendSafe(message) {
+    try { send(message); return true; } catch (e) { logLine("send failed: " + message.type); return false; }
+  }
+
+  function closeSocket() {
+    if (state.pinTimer) { clearTimeout(state.pinTimer); state.pinTimer = null; }
+    if (state.connectTimer) { clearTimeout(state.connectTimer); state.connectTimer = null; }
+    if (state.ws) {
+      var socket = state.ws;
+      state.ws = null;
+      socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
+      try { socket.close(); } catch (e) {}
+    }
+  }
+
+  function connect(host, port) {
+    closeSocket();
+    teardownStream(false, true);
+    state.host = host;
+    state.port = Number(port) || DEFAULT_PORT;
+    state.name = "";
+    state.authorized = false;
+    state.greeted = false;
+    state.apps = [];
+    state.caps = null;
+    state.qualities = [];
+    state.quality = null;
+    state.creds = findSaved(host, state.port);
+    el.addr.value = addressLabel(host, state.port);
+    state.addressPrefilled = false;
+    // The last address is remembered even before pairing, so the next launch can
+    // offer it instead of the 192.168.1.x placeholder.
+    prefs.lastAddress = { host: host, port: state.port };
+    writePrefs();
+    renderAddressHint();
+    showConnectError("");
+    showPairError("");
+    setPill("Connecting…", "");
+    el.connectBtn.disabled = true;
+    el.refreshBtn.hidden = true;
+
+    var url = socketUrl(host, state.port);
+    logLine("connect " + url);
+    var socket;
+    var opened = false;
+    try { socket = new WebSocket(url); } catch (e) {
+      if (window.location.protocol === "https:") {
+        fail(blockedOriginHint());
+      } else {
+        fail("Unable to open connection: " + (e && e.message ? e.message : e));
+      }
+      return;
+    }
+    state.ws = socket;
+
+    state.connectTimer = setTimeout(function () {
+      if (!state.greeted) {
+        try { socket.close(); } catch (e) {}
+        fail(!opened && window.location.protocol === "https:" ? blockedOriginHint() :
+          "The PC is not responding at " + addressLabel(host, state.port) +
+          ". Check that Sunshine-Web-RTC is running and that the TV is on the same network.");
+      }
+    }, CONNECT_TIMEOUT_MS);
+
+    socket.onopen = function () { opened = true; logLine("socket open"); };
+    socket.onmessage = function (event) {
+      var message = null;
+      try { message = JSON.parse(event.data); } catch (e) { return; }
+      if (!message || typeof message.type !== "string") return;
+      if (message.version !== PROTOCOL) {
+        if (message.version === 1) {
+          fail("This PC uses the old Moonlight WebRTC Gateway. Install Sunshine-Web-RTC.");
+        }
+        return;
+      }
+      handleMessage(message);
+    };
+    socket.onerror = function () { logLine("socket error"); };
+    socket.onclose = function () {
+      logLine("socket closed");
+      if (state.ws !== socket) return;
+      state.ws = null;
+      if (state.streaming) teardownStream(false, true);
+      setPill("Disconnected", "bad");
+      if (state.authorized) {
+        showConnectError("Connection to PC interrupted. Try again.");
+        el.refreshBtn.hidden = false;
+        showView("connect");
+      } else if (!state.greeted) {
+        fail(!opened && window.location.protocol === "https:" ? blockedOriginHint() :
+          "Connection refused by the PC. Check the address and port 8000.");
+      }
+    };
+  }
+
+  function fail(text) {
+    closeSocket();
+    el.connectBtn.disabled = false;
+    el.refreshBtn.hidden = false;
+    setPill("Not connected", "bad");
+    showConnectError(text);
+    showView("connect");
+  }
+
+  /* -------------------------------------------------------------- protocol */
+
+  function handleMessage(message) {
+    if (message.type === "auth-required") { onAuthRequired(message); return; }
+    if (message.type === "authenticated") { logLine("authenticated"); return; }
+    if (message.type === "paired") { onPaired(message); return; }
+    if (message.type === "gateway-status") { onGatewayStatus(message); return; }
+    if (message.type === "capabilities") { onCapabilities(message); return; }
+    if (message.type === "apps") { onApps(message); return; }
+    if (message.type === "app-artwork") { onArtwork(message); return; }
+    if (message.type === "session-status") { onSessionStatus(message); return; }
+    if (message.type === "offer") { onOffer(message); return; }
+    if (message.type === "candidate") { onCandidate(message); return; }
+    if (message.type === "error") { onError(message); return; }
+    if (message.type === "sunshine-availability") return;
+    logLine("ignored message " + message.type);
+  }
+
+  function onAuthRequired(message) {
+    state.greeted = true;
+    if (state.connectTimer) { clearTimeout(state.connectTimer); state.connectTimer = null; }
+    if (message.pairing !== "client-pin") {
+      fail("The PC does not accept TV pairing: update Sunshine-Web-RTC.");
+      return;
+    }
+    var credentials = state.creds;
+    if (credentials && validCredentials(credentials.clientId, credentials.clientSecret)) {
+      setPill("Verifying…", "");
+      sendSafe({
+        type: "authenticate",
+        clientId: credentials.clientId,
+        proof: authProof(credentials.clientSecret, message.nonce)
+      });
+      return;
+    }
+    beginPairing("");
+  }
+
+  function beginPairing(note) {
+    state.pairing = true;
+    state.pin = String(Math.floor(Math.random() * 10000));
+    while (state.pin.length < 4) state.pin = "0" + state.pin;
+    el.pin.textContent = state.pin;
+    el.pairState.textContent = note || "Waiting for you to confirm the PIN on the PC…";
+    showPairError("");
+    showView("pair");
+    setPill("Pairing", "");
+    sendSafe({ type: "request-pairing", pin: state.pin, clientName: "Sidee TV" });
+    if (state.pinTimer) clearTimeout(state.pinTimer);
+    state.pinTimer = setTimeout(function () {
+      if (state.pairing) beginPairing("The PIN expired: here is a new one.");
+    }, PAIR_TIMEOUT_MS);
+  }
+
+  function onPaired(message) {
+    if (!validCredentials(message.clientId, message.clientSecret)) {
+      showPairError("The PC sent invalid credentials. Try again.");
+      beginPairing("New PIN ready.");
+      return;
+    }
+    state.pairing = false;
+    if (state.pinTimer) { clearTimeout(state.pinTimer); state.pinTimer = null; }
+    rememberHost({
+      host: state.host, port: state.port, name: state.name,
+      clientId: message.clientId, clientSecret: message.clientSecret
+    });
+    state.creds = findSaved(state.host, state.port);
+    showPairError("");
+    setPill("Connected", "ok");
+    el.pcState.textContent = "Paired, loading apps…";
+    logLine("paired");
+  }
+
+  function onGatewayStatus(message) {
+    state.name = typeof message.gatewayName === "string" && message.gatewayName ? message.gatewayName : "PC";
+    el.pcName.textContent = state.name;
+    if (!state.authorized) {
+      state.authorized = true;
+      state.pairing = false;
+      if (state.pinTimer) { clearTimeout(state.pinTimer); state.pinTimer = null; }
+      setPill("Connected", "ok");
+      el.connectBtn.disabled = false;
+      el.refreshBtn.hidden = true;
+      rememberHost({ host: state.host, port: state.port, name: state.name });
+      sendSafe({ type: "get-apps" });
+    }
+    if (message.runningAppId) {
+      state.apps.forEach(function (app) { app.running = String(app.id) === String(message.runningAppId); });
+      renderApps();
+    }
+    if (!el.viewLibrary.hidden) el.pcState.textContent = "Connected · Sunshine ready";
+  }
+
+  function onCapabilities(message) {
+    state.caps = message;
+    state.qualities = buildQualities();
+    state.quality = chooseQuality();
+    renderQuality();
+  }
+
+  function onApps(message) {
+    state.apps = Array.isArray(message.apps) ? message.apps.slice(0, 80) : [];
+    renderApps();
+    loadArtwork();
+    if (state.streaming) return;
+    if (el.viewLibrary.hidden) {
+      showView("library", ".tile");
+      el.pcState.textContent = "Connected · Sunshine ready";
+    } else if (!el.apps.contains(document.activeElement)) {
+      var first = el.apps.querySelector(".tile");
+      if (first) focusNode(first);
+    }
+  }
+
+  function onArtwork(message) {
+    if (!message || !message.available || !message.data) return;
+    var tile = el.apps.querySelector('[data-app-id="' + cssEscape(String(message.appId)) + '"] .art');
+    if (!tile) return;
+    var img = document.createElement("img");
+    img.alt = "";
+    img.src = "data:" + (message.mimeType || "image/jpeg") + ";base64," + message.data;
+    tile.appendChild(img);
+  }
+
+  function onError(message) {
+    var code = message.code || "";
+    if (message.requestType === "authenticate") {
+      if (code === "client-disabled") {
+        fail("This TV is disabled in Sunshine. Re-enable it from Troubleshooting.");
+        return;
+      }
+      if (state.creds) {
+        state.creds.clientId = "";
+        state.creds.clientSecret = "";
+        rememberHost({ host: state.host, port: state.port });
+      }
+      beginPairing("The PC no longer recognizes this TV: pairing again.");
+      return;
+    }
+    if (message.requestType === "request-pairing") {
+      if (code === "pairing-cancelled") {
+        state.pairing = false;
+        if (state.pinTimer) { clearTimeout(state.pinTimer); state.pinTimer = null; }
+        showPairError("Pairing cancelled on the PC. Press New PIN to try again.");
+        el.pin.textContent = "----";
+        setPill("Not paired", "bad");
+      } else if (code === "incorrect-pin") {
+        beginPairing("Wrong PIN on the PC: here is a new one.");
+      } else if (code === "unsupported-pairing") {
+        fail("Sunshine is too old for this TV: update Sunshine-Web-RTC.");
+      } else {
+        beginPairing(message.message || "Pairing failed: new PIN.");
+      }
+      return;
+    }
+    var detail = message.message || code || "Request failed";
+    logLine("error " + (message.requestType || "") + " " + code + " " + detail);
+    toast(detail, true);
+    if (message.requestType === "start-session") {
+      teardownStream(true, true);
+      showView("library");
+    }
+  }
+
+  /* -------------------------------------------------------------- library */
+
+  function cssEscape(value) { return String(value).replace(/["\\]/g, "\\$&"); }
+
+  function renderApps() {
+    var previous = document.activeElement && document.activeElement.getAttribute
+      ? document.activeElement.getAttribute("data-app-id") : "";
+    el.apps.innerHTML = "";
+    el.appsEmpty.hidden = state.apps.length > 0;
+    state.apps.forEach(function (app) {
+      var tile = document.createElement("button");
+      tile.className = "tile focusable";
+      tile.setAttribute("data-app-id", String(app.id));
+      var art = document.createElement("div"); art.className = "art";
+      var letter = document.createElement("div"); letter.className = "letter";
+      letter.textContent = String(app.title || "?").trim().charAt(0).toUpperCase();
+      art.appendChild(letter);
+      var meta = document.createElement("div"); meta.className = "meta";
+      var title = document.createElement("div"); title.className = "title";
+      title.textContent = app.title || "Application";
+      var sub = document.createElement("div"); sub.className = "sub";
+      sub.textContent = app.running ? "Running on PC" : "OK to launch";
+      meta.appendChild(title); meta.appendChild(sub);
+      tile.appendChild(art); tile.appendChild(meta);
+      if (app.running) {
+        var badge = document.createElement("div"); badge.className = "running"; badge.textContent = "RUNNING";
+        tile.appendChild(badge);
+      }
+      tile.addEventListener("click", function () { startApp(app); });
+      el.apps.appendChild(tile);
+    });
+    // A host update re-renders the grid: keep the D-pad where the user was.
+    if (previous) {
+      var restore = el.apps.querySelector('[data-app-id="' + cssEscape(previous) + '"]');
+      if (restore) focusNode(restore);
+    }
+    el.libHint.textContent = state.apps.length ? "OK starts · Back returns to PCs" : "No apps on PC";
+  }
+
+  function loadArtwork() {
+    var queue = state.apps.slice(0, 12);
+    var index = 0;
+    function next() {
+      if (index >= queue.length) return;
+      var app = queue[index++];
+      if (state.ws && state.authorized) {
+        sendSafe({ type: "get-app-artwork", appId: app.id });
+      }
+      setTimeout(next, 120);
+    }
+    next();
+  }
+
+  function receiverSupports(mime) {
+    try {
+      if (!window.RTCPeerConnection || !window.RTCRtpReceiver || !RTCRtpReceiver.getCapabilities) return false;
+      var caps = RTCRtpReceiver.getCapabilities("video");
+      if (!caps || !caps.codecs) return false;
+      var wanted = mime.toLowerCase();
+      return caps.codecs.some(function (codec) {
+        var type = String(codec.mimeType || "").toLowerCase();
+        return type === wanted || (wanted === "video/h265" && type === "video/hevc");
+      });
+    } catch (e) { return false; }
+  }
+
+  function buildQualities() {
+    var modes = (state.caps && state.caps.videoModes) || [];
+    var hevc = receiverSupports("video/H265");
+    var list = [];
+    modes.forEach(function (mode) {
+      if (!mode || !Array.isArray(mode.codecs) || mode.height > 1440) return;
+      var codec = mode.codecs.indexOf("h264") >= 0 ? "h264"
+        : (hevc && mode.codecs.indexOf("hevc") >= 0 ? "hevc" : null);
+      if (!codec) return;
+      var rates = (Array.isArray(mode.frameRates) ? mode.frameRates : [mode.fps || 60])
+        .filter(function (rate) { return rate <= 60; });
+      var fps = rates.length ? Math.max.apply(null, rates) : 60;
+      list.push({
+        width: Number(mode.width) || 1920,
+        height: Number(mode.height) || 1080,
+        fps: fps,
+        codec: codec,
+        bitrateKbps: Number(mode.defaultBitrateKbps) || (mode.height >= 1080 ? 20000 : 12000),
+        hdr: false
+      });
+    });
+    if (!list.length) {
+      list = [
+        { width: 1280, height: 720, fps: 60, codec: "h264", bitrateKbps: 12000, hdr: false },
+        { width: 1920, height: 1080, fps: 60, codec: "h264", bitrateKbps: 20000, hdr: false }
+      ];
+    }
+    list.sort(function (a, b) {
+      if (a.height !== b.height) return a.height - b.height;
+      if (a.codec !== b.codec) return a.codec === "h264" ? -1 : 1;
+      return a.bitrateKbps - b.bitrateKbps;
+    });
+    return list;
+  }
+
+  function chooseQuality() {
+    if (!state.qualities.length) return null;
+    var wanted = prefs.quality;
+    if (wanted) {
+      for (var i = 0; i < state.qualities.length; i++) {
+        var q = state.qualities[i];
+        if (q.width === wanted.width && q.height === wanted.height && q.codec === wanted.codec && q.fps === wanted.fps) return q;
+      }
+    }
+    var best = null;
+    state.qualities.forEach(function (q) { if (q.height <= 1080) best = q; });
+    return best || state.qualities[state.qualities.length - 1];
+  }
+
+  function renderQuality() {
+    var q = state.quality;
+    el.qualityBtn.textContent = q
+      ? "Quality: " + q.height + "p · " + Math.round(q.bitrateKbps / 1000) + " Mbps"
+      : "Quality: 1080p · 20 Mbps";
+  }
+
+  function cycleQuality() {
+    if (state.qualities.length < 2) { toast("The PC offers only one quality."); return; }
+    var index = state.qualities.indexOf(state.quality);
+    state.quality = state.qualities[(index + 1) % state.qualities.length];
+    prefs.quality = state.quality;
+    writePrefs();
+    renderQuality();
+  }
+
+  function startApp(app) {
+    if (!state.quality) state.quality = chooseQuality();
+    if (!state.quality) { toast("The PC did not announce any video quality.", true); return; }
+    state.exitRequested = false;
+    state.sessionId = 0;
+    state.streaming = true;
+    state.lastFrames = -1;
+    state.stalled = 0;
+    el.launch.hidden = false;
+    el.launchStage.textContent = "Preparing…";
+    el.launchApp.textContent = app.title || "";
+    el.streamChip.textContent = "Starting " + (app.title || "application") + "…";
+    el.stream.hidden = false;
+    el.viewLibrary.hidden = true;
+    el.overlay.classList.add("show");
+    try {
+      send({
+        type: "start-session",
+        appId: app.id,
+        video: {
+          width: state.quality.width, height: state.quality.height, fps: state.quality.fps,
+          codec: state.quality.codec, bitrateKbps: state.quality.bitrateKbps, hdr: false
+        },
+        audio: { channels: 2 }
+      });
+    } catch (e) {
+      teardownStream(true, true);
+      toast("No connection.", true);
+      showView("library");
+      return;
+    }
+    el.stream.setAttribute("tabindex", "-1");
+    focusNode(el.stream);
+    logLine("start-session " + app.id + " " + state.quality.codec + " " + state.quality.height + "p");
+  }
+
+  /* -------------------------------------------------------------- session */
+
+  function onSessionStatus(message) {
+    if (typeof message.sessionId === "number") state.sessionId = message.sessionId;
+    var stage = String(message.state || "");
+    if (stage === "streaming") {
+      el.launch.hidden = true;
+      el.streamChip.textContent = "Live · " + (message.video ? message.video.height + "p" : "");
+      showOverlay();
+      announcePads(true);
+      startPadLoop();
+      startStats();
+      setPill("Streaming", "ok");
+      logLine("streaming");
+      return;
+    }
+    if (stage === "error") {
+      var detail = message.message || "The PC ended the session.";
+      toast(detail, true);
+      teardownStream(false, true);
+      showView("library");
+      return;
+    }
+    if (stage === "idle") {
+      // The host already ended the session: do not send another stop-session.
+      teardownStream(true, true);
+      showView("library");
+      sendSafe({ type: "get-apps" });
+      return;
+    }
+    var labels = {
+      "starting": "Preparing…",
+      "starting-webrtc": "Preparing WebRTC…",
+      "connecting-sunshine": "Connecting to Sunshine…",
+      "starting-moonlight": "Starting game…",
+      "stopping": "Closing…"
+    };
+    var label = labels[stage] || "Preparing…";
+    el.launchStage.textContent = label;
+    el.streamChip.textContent = label;
+  }
+
+  function createPeer(sessionId) {
+    closePeer();
+    state.sessionId = sessionId;
+    state.pendingCandidates = [];
+    state.remoteStream = new MediaStream();
+    var pc;
+    try { pc = new RTCPeerConnection({ iceServers: [] }); } catch (e) { return null; }
+    state.pc = pc;
+    pc.ondatachannel = function (event) {
+      var channel = event.channel;
+      if (channel.label === "control") {
+        rememberChannel(channel);
+        channel.onmessage = onControlMessage;
+        channel.onopen = function () { announcePads(true); };
+      } else if (channel.label === "gamepad") {
+        rememberChannel(channel);
+        channel.binaryType = "arraybuffer";
+        channel.onopen = function () { announcePads(true); };
+      } else {
+        try { channel.close(); } catch (e) {}
+      }
+    };
+    pc.onicecandidate = function (event) {
+      if (!event.candidate || !state.sessionId) return;
+      sendSafe({ type: "candidate", sessionId: state.sessionId, candidate: event.candidate.candidate, mid: event.candidate.sdpMid });
+    };
+    pc.ontrack = function (event) {
+      try { event.track.enabled = true; } catch (e) {}
+      if (event.track.kind === "video") {
+        try {
+          if ("jitterBufferTarget" in event.receiver) event.receiver.jitterBufferTarget = 0;
+          else if ("playoutDelayHint" in event.receiver) event.receiver.playoutDelayHint = 0;
+        } catch (e) {}
+      }
+      if (state.remoteStream) state.remoteStream.addTrack(event.track);
+      el.video.srcObject = state.remoteStream;
+      el.video.autoplay = true;
+      el.video.playsInline = true;
+      if (event.track.kind === "audio") el.video.muted = false;
+      tryPlay();
+    };
+    pc.onconnectionstatechange = function () {
+      if (!state.pc) return;
+      var connection = pc.connectionState;
+      logLine("pc " + connection);
+      if (connection === "connected") el.streamChip.textContent = "Live";
+      if (connection === "failed" || connection === "disconnected") {
+        el.streamChip.textContent = "Connection lost";
+        toast("Video connection lost. Return to the library and restart.", true);
+      }
+    };
+    return pc;
+  }
+
+  function tryPlay() {
+    var promise;
+    try { promise = el.video.play(); } catch (e) { showTap(); return; }
+    if (promise && promise.catch) {
+      promise.catch(function (error) {
+        var now = Date.now();
+        if (now - state.lastPlayError > 2000) {
+          state.lastPlayError = now;
+          logLine("play blocked: " + (error && error.name ? error.name : error));
+        }
+        showTap();
+      });
+    }
+  }
+
+  function showTap() {
+    if (document.hidden) return;
+    el.tap.hidden = false;
+    focusNode(el.tapBtn);
+  }
+
+  function onOffer(message) {
+    if (typeof message.sessionId !== "number" || typeof message.sdp !== "string") return;
+    var pc = state.pc;
+    if (!pc || state.sessionId !== message.sessionId) pc = createPeer(message.sessionId);
+    if (!pc) { toast("WebRTC is not available on this TV.", true); return; }
+    var sdp = stripImageattr(separateAudioSync(message.sdp));
+    pc.setRemoteDescription({ type: "offer", sdp: sdp }).then(function () {
+      return flushCandidates();
+    }).then(function () {
+      return pc.createAnswer();
+    }).then(function (answer) {
+      return pc.setLocalDescription(answer).then(function () {
+        sendSafe({ type: "answer", sessionId: message.sessionId, sdp: ensureStereoOpus(pc.localDescription.sdp) });
+      });
+    }).catch(function (error) {
+      logLine("offer failed: " + (error && error.message ? error.message : error));
+      toast("Video negotiation failed.", true);
+    });
+  }
+
+  function onCandidate(message) {
+    if (!state.pc || message.sessionId !== state.sessionId) return;
+    var candidate = { candidate: message.candidate, sdpMid: message.mid };
+    if (!state.pc.remoteDescription) { state.pendingCandidates.push(candidate); return; }
+    state.pc.addIceCandidate(candidate).catch(function () {});
+  }
+
+  function flushCandidates() {
+    if (!state.pc) return Promise.resolve();
+    var pending = state.pendingCandidates.splice(0);
+    return pending.reduce(function (chain, candidate) {
+      return chain.then(function () { return state.pc.addIceCandidate(candidate).catch(function () {}); });
+    }, Promise.resolve());
+  }
+
+  function closePeer() {
+    if (state.pc) {
+      try {
+        state.pc.ondatachannel = state.pc.ontrack = state.pc.onicecandidate = state.pc.onconnectionstatechange = null;
+        state.pc.close();
+      } catch (e) {}
+      state.pc = null;
+    }
+    if (state.remoteStream) {
+      state.remoteStream.getTracks().forEach(function (track) { try { track.stop(); } catch (e) {} });
+      state.remoteStream = null;
+    }
+    state.controlChannel = null;
+    state.gamepadChannel = null;
+    state.remotePad.announced = false;
+    state.remotePad.state = null;
+    state.pads = {};
+    el.video.srcObject = null;
+  }
+
+  function teardownStream(keepAlive, silent) {
+    if (state.ws && state.sessionId && !keepAlive) sendSafe({ type: "stop-session" });
+    stopPadLoop();
+    stopStats();
+    closePeer();
+    state.sessionId = 0;
+    state.streaming = false;
+    el.stream.hidden = true;
+    el.launch.hidden = true;
+    el.tap.hidden = true;
+    el.overlay.classList.remove("show");
+    el.stats.hidden = true;
+    setPill(state.authorized ? "Connected" : "Not connected", state.authorized ? "ok" : "");
+    if (!silent) showView("library");
+  }
+
+  function disconnectToHosts() {
+    teardownStream(false, true);
+    closeSocket();
+    state.authorized = false;
+    setPill("Not connected", "");
+    el.connectBtn.disabled = false;
+    renderHosts();
+    showView("connect");
+  }
+
+  function stopSession() {
+    if (!state.streaming) return;
+    state.exitRequested = true;
+    el.launch.hidden = false;
+    el.launchStage.textContent = "Closing…";
+    sendSafe({ type: "stop-session" });
+    setTimeout(function () {
+      teardownStream(true, true);
+      showView("library");
+      sendSafe({ type: "get-apps" });
+    }, 250);
+  }
+
+  /* --------------------------------------------------------------- remote */
+
+  var PAD = {
+    A: 1, B: 2, X: 4, Y: 8, LB: 16, RB: 32, BACK: 64, START: 128,
+    LS: 256, RS: 512, UP: 1024, DOWN: 2048, LEFT: 4096, RIGHT: 8192, GUIDE: 16384
+  };
+
+  function neutralPad() {
+    return {
+      buttons: 0, leftTrigger: 0, rightTrigger: 0,
+      leftStickX: 0, leftStickY: 0, rightStickX: 0, rightStickY: 0
+    };
+  }
+
+  // The host creates the DataChannels; keep the objects once they arrive.
+  function rememberChannel(channel) {
+    if (channel.label === "control") state.controlChannel = channel;
+    if (channel.label === "gamepad") state.gamepadChannel = channel;
+  }
+
+  function channelOpen(channel) { return channel && channel.readyState === "open"; }
+
+  function padSend(channel, payload) {
+    if (!channelOpen(channel)) return false;
+    if (Number(channel.bufferedAmount) > 65536) return false;
+    try { channel.send(payload); return true; } catch (e) { return false; }
+  }
+
+  function announcePads(force) {
+    var control = state.controlChannel;
+    if (!channelOpen(control)) return;
+    if (!state.remotePad.announced || force) {
+      padSend(control, JSON.stringify({
+        v: PROTOCOL, type: "gamepad-connected", controllerId: 1, index: 0, browserIndex: 0,
+        id: "Sidee TV remote", mapping: "", buttons: 17, axes: 4,
+        dualRumble: false, triggerRumble: false
+      }));
+      state.remotePad.announced = true;
+    }
+  }
+
+  function sendRemoteState() {
+    var pad = state.remotePad;
+    var stateValue = pad.state;
+    if (!stateValue) return;
+    if (!pad.announced) announcePads(false);
+    pad.seq += 1;
+    padSend(state.gamepadChannel, JSON.stringify({
+      v: PROTOCOL, type: "gamepad-state", controllerId: 1, seq: pad.seq,
+      timestampMs: Math.round(performance.now()),
+      buttons: stateValue.buttons,
+      leftTrigger: stateValue.leftTrigger, rightTrigger: stateValue.rightTrigger,
+      leftStickX: stateValue.leftStickX, leftStickY: stateValue.leftStickY,
+      rightStickX: stateValue.rightStickX, rightStickY: stateValue.rightStickY
+    }));
+  }
+
+  function remotePadKey(name, down) {
+    var bit = name === "up" ? PAD.UP
+      : name === "down" ? PAD.DOWN
+      : name === "left" ? PAD.LEFT
+      : name === "right" ? PAD.RIGHT
+      : name === "ok" ? PAD.A
+      : name === "back" ? PAD.B
+      : name === "playPause" ? PAD.START
+      : name === "channelUp" ? PAD.RB
+      : name === "channelDown" ? PAD.LB
+      : 0;
+    if (!bit) return false;
+    var current = state.remotePad.state || neutralPad();
+    if (down) current.buttons |= bit;
+    else current.buttons &= ~bit;
+    state.remotePad.state = current;
+    sendRemoteState();
+    return true;
+  }
+
+  function startPadLoop() {
+    stopPadLoop();
+    state.padTimer = setInterval(pollPhysicalPads, 33);
+  }
+
+  function stopPadLoop() {
+    if (state.padTimer) { clearInterval(state.padTimer); state.padTimer = null; }
+    if (state.remotePad.state) {
+      state.remotePad.state = neutralPad();
+      sendRemoteState();
+    }
+  }
+
+  function pollPhysicalPads() {
+    if (!state.streaming || document.hidden) return;
+    if (!channelOpen(state.controlChannel)) { announcePads(false); return; }
+    if (!state.remotePad.announced) announcePads(false);
+    if (!navigator.getGamepads) return;
+    var gamepads = navigator.getGamepads() || [];
+    var seen = {};
+    for (var i = 0; i < gamepads.length; i++) {
+      var pad = gamepads[i];
+      if (!pad) continue;
+      seen[pad.index] = true;
+      var record = state.pads[pad.index];
+      if (!record) {
+        record = state.pads[pad.index] = {
+          controllerId: pad.index + 2, seq: 0, last: neutralPad(), sentAt: 0, announced: false
+        };
+      }
+      if (!record.announced && channelOpen(state.controlChannel)) {
+        padSend(state.controlChannel, JSON.stringify({
+          v: PROTOCOL, type: "gamepad-connected", controllerId: record.controllerId,
+          index: pad.index, browserIndex: pad.index, id: pad.id || "Gamepad",
+          mapping: pad.mapping || "", buttons: pad.buttons ? pad.buttons.length : 0,
+          axes: pad.axes ? pad.axes.length : 0, dualRumble: true, triggerRumble: false
+        }));
+        record.announced = true;
+      }
+      var next = readPad(pad);
+      var changed = !samePad(record.last, next);
+      var now = performance.now();
+      if (changed || now - record.sentAt > 250) {
+        record.seq += 1;
+        padSend(state.gamepadChannel, JSON.stringify({
+          v: PROTOCOL, type: "gamepad-state", controllerId: record.controllerId, seq: record.seq,
+          timestampMs: Math.round(now), buttons: next.buttons,
+          leftTrigger: next.leftTrigger, rightTrigger: next.rightTrigger,
+          leftStickX: next.leftStickX, leftStickY: next.leftStickY,
+          rightStickX: next.rightStickX, rightStickY: next.rightStickY
+        }));
+        record.last = next;
+        record.sentAt = now;
+      }
+    }
+    Object.keys(state.pads).forEach(function (index) {
+      if (seen[index]) return;
+      var record = state.pads[index];
+      delete state.pads[index];
+      padSend(state.controlChannel, JSON.stringify({
+        v: PROTOCOL, type: "gamepad-disconnected", controllerId: record.controllerId
+      }));
+    });
+  }
+
+  function readPad(pad) {
+    var next = neutralPad();
+    var map = [[0, PAD.A], [1, PAD.B], [2, PAD.X], [3, PAD.Y], [4, PAD.LB], [5, PAD.RB],
+      [8, PAD.BACK], [9, PAD.START], [10, PAD.LS], [11, PAD.RS],
+      [12, PAD.UP], [13, PAD.DOWN], [14, PAD.LEFT], [15, PAD.RIGHT], [16, PAD.GUIDE]];
+    for (var i = 0; i < map.length; i++) {
+      var button = pad.buttons && pad.buttons[map[i][0]];
+      if (button && (button.pressed || Number(button.value) > 0.5)) next.buttons |= map[i][1];
+    }
+    if (pad.buttons && pad.buttons[6]) next.leftTrigger = Number(pad.buttons[6].value) || 0;
+    if (pad.buttons && pad.buttons[7]) next.rightTrigger = Number(pad.buttons[7].value) || 0;
+    var axes = pad.axes || [];
+    next.leftStickX = Number(axes[0]) || 0;
+    next.leftStickY = Number(axes[1]) || 0;
+    next.rightStickX = Number(axes[2]) || 0;
+    next.rightStickY = Number(axes[3]) || 0;
+    return next;
+  }
+
+  function samePad(a, b) {
+    return a.buttons === b.buttons && a.leftTrigger === b.leftTrigger && a.rightTrigger === b.rightTrigger
+      && a.leftStickX === b.leftStickX && a.leftStickY === b.leftStickY
+      && a.rightStickX === b.rightStickX && a.rightStickY === b.rightStickY;
+  }
+
+  function onControlMessage(event) {
+    if (typeof event.data !== "string") return;
+    var message;
+    try { message = JSON.parse(event.data); } catch (e) { return; }
+    if (message.type === "rumble") {
+      var record = state.pads[Number(message.controllerId) - 2];
+      if (!record || !navigator.getGamepads) return;
+      var pads = navigator.getGamepads();
+      var physical = null;
+      for (var i = 0; i < pads.length; i++) {
+        if (pads[i] && pads[i].index === Number(message.controllerId) - 2) physical = pads[i];
+      }
+      var actuator = physical && physical.vibrationActuator;
+      if (!actuator || typeof actuator.playEffect !== "function") return;
+      try {
+        actuator.playEffect("dual-rumble", {
+          duration: 5000, startDelay: 0,
+          strongMagnitude: Math.max(0, Math.min(1, Number(message.strongMagnitude) || 0)),
+          weakMagnitude: Math.max(0, Math.min(1, Number(message.weakMagnitude) || 0))
+        });
+      } catch (e) {}
+    }
+  }
+
+  /* ---------------------------------------------------------------- stats */
+
+  function showOverlay() {
+    el.overlay.classList.add("show");
+    if (state.overlayTimer) clearTimeout(state.overlayTimer);
+    state.overlayTimer = setTimeout(function () {
+      if (state.streaming) el.overlay.classList.remove("show");
+    }, 4500);
+  }
+
+  function startStats() {
+    stopStats();
+    state.bytes = 0;
+    state.bytesAt = performance.now();
+    state.statsTimer = setInterval(tickStats, 1000);
+    state.watchdog = setInterval(checkStall, 2000);
+  }
+
+  function stopStats() {
+    if (state.statsTimer) { clearInterval(state.statsTimer); state.statsTimer = null; }
+    if (state.watchdog) { clearInterval(state.watchdog); state.watchdog = null; }
+  }
+
+  function tickStats() {
+    if (!state.streaming || !state.pc) return;
+    var quality = el.video.getVideoPlaybackQuality ? el.video.getVideoPlaybackQuality() : null;
+    var frames = quality ? Number(quality.totalVideoFrames) || 0 : 0;
+    var now = performance.now();
+    var info = { width: el.video.videoWidth, height: el.video.videoHeight, fps: 0, bitrate: 0, decode: "-", loss: "-", rtt: "-" };
+    state.pc.getStats(null).then(function (report) {
+      report.forEach(function (entry) {
+        if (entry.type === "inbound-rtp" && entry.kind === "video") {
+          info.fps = Math.round(Number(entry.framesPerSecond) || 0);
+          if (entry.bytesReceived) {
+            var delta = Number(entry.bytesReceived) - state.bytes;
+            var elapsed = now - state.bytesAt;
+            if (state.bytes && elapsed > 400) info.bitrate = Math.round((delta * 8) / elapsed);
+            state.bytes = Number(entry.bytesReceived);
+            state.bytesAt = now;
+          }
+          if (entry.jitterBufferDelay && entry.jitterBufferEmittedCount) {
+            info.decode = Math.round((entry.jitterBufferDelay / entry.jitterBufferEmittedCount) * 1000) + " ms";
+          }
+          if (entry.packetsLost != null) info.loss = String(entry.packetsLost);
+        }
+        if (entry.type === "candidate-pair" && entry.state === "succeeded" && entry.currentRoundTripTime != null) {
+          info.rtt = Math.round(Number(entry.currentRoundTripTime) * 1000) + " ms";
+        }
+      });
+      if (!el.stats.hidden) {
+        el.stats.textContent =
+          "Video   " + (info.width || "?") + "×" + (info.height || "?") + " @ " + info.fps + " fps\n" +
+          "Network " + (info.bitrate ? (info.bitrate / 1000).toFixed(1) + " Mbps" : "-") + " · RTT " + info.rtt + "\n" +
+          "Buffer  " + info.decode + " · lost " + info.loss + "\n" +
+          "Codec   " + (state.quality ? state.quality.codec.toUpperCase() : "-") + " · frame " + frames;
+      }
+      state.currentFrames = frames;
+    }).catch(function () {});
+    el.stats.hidden = false;
+  }
+
+  function checkStall() {
+    if (!state.streaming || !state.pc) return;
+    var frames = Number(state.currentFrames) || 0;
+    if (frames === state.lastFrames) {
+      state.stalled += 1;
+      if (state.stalled === 1) {
+        padSend(state.controlChannel, JSON.stringify({ v: PROTOCOL, type: "request-keyframe", reason: "not-decoding" }));
+      }
+      if (state.stalled >= 3) {
+        el.streamChip.textContent = "Signal stalled";
+        try { el.video.play(); } catch (e) {}
+      }
+    } else {
+      state.stalled = 0;
+      if (el.streamChip.textContent === "Signal stalled") el.streamChip.textContent = "Live";
+    }
+    state.lastFrames = frames;
+  }
+
+  /* ----------------------------------------------------------------- focus */
+
+  function isVisible(node) {
+    if (!node || node.disabled) return false;
+    if (node.getAttribute("data-nofocus") === "1") return false;
+    return !!(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
+  }
+
+  // A TV webview can refuse focus on a text field and leave activeElement on
+  // <body>. Remembering that node stops the D-pad from being trapped on it: the
+  // field stays usable through the keypad and the remote digits.
+  function focusNode(node) {
+    if (!node || node.disabled || node.getAttribute("data-nofocus") === "1") return false;
+    try { node.focus({ preventScroll: false }); }
+    catch (e) { try { node.focus(); } catch (ignored) { return false; } }
+    if (document.activeElement === node) return true;
+    try { node.setAttribute("data-nofocus", "1"); } catch (ignored) {}
+    return false;
+  }
+
+  function focusables(root) {
+    var list = Array.prototype.slice.call((root || document).querySelectorAll(".focusable"));
+    return list.filter(isVisible);
+  }
+
+  function firstFocusable(root) {
+    var list = focusables(root);
+    for (var i = 0; i < list.length; i++) {
+      if (focusNode(list[i])) return list[i];
+    }
+    return null;
+  }
+
+  function moveFocus(direction) {
+    var list = focusables();
+    if (!list.length) return false;
+    var current = document.activeElement;
+    var index = list.indexOf(current);
+    if (index < 0) { firstFocusable(); return true; }
+    var from = current.getBoundingClientRect();
+    var fx = from.left + from.width / 2;
+    var fy = from.top + from.height / 2;
+    var best = null;
+    var bestScore = Infinity;
+    for (var i = 0; i < list.length; i++) {
+      var node = list[i];
+      if (node === current) continue;
+      var rect = node.getBoundingClientRect();
+      var dx = rect.left + rect.width / 2 - fx;
+      var dy = rect.top + rect.height / 2 - fy;
+      var primary = direction === "left" ? -dx : direction === "right" ? dx : direction === "up" ? -dy : dy;
+      if (primary < 4) continue;
+      var secondary = direction === "left" || direction === "right" ? Math.abs(dy) : Math.abs(dx);
+      var score = primary + secondary * 0.6;
+      if (score < bestScore) { bestScore = score; best = node; }
+    }
+    if (best && focusNode(best)) return true;
+    // No element in that direction must never eat the key: walk the DOM order
+    // from the current element, clamped at the ends, so focus always advances.
+    var step = direction === "left" || direction === "up" ? -1 : 1;
+    for (var n = index + step; n >= 0 && n < list.length; n += step) {
+      if (focusNode(list[n])) return true;
+    }
+    return false;
+  }
+
+  function showView(name, preferred) {
+    el.viewConnect.hidden = name !== "connect";
+    el.viewPair.hidden = name !== "pair";
+    el.viewLibrary.hidden = name !== "library";
+    state.view = name;
+    var view = el["view" + name.charAt(0).toUpperCase() + name.slice(1)];
+    if (!view) return;
+    if (name === "library" && !preferred) preferred = ".tile";
+    var target = preferred ? view.querySelector(preferred) : null;
+    setTimeout(function () {
+      if (target && isVisible(target) && focusNode(target)) return;
+      firstFocusable(view);
+    }, 30);
+  }
+
+  /* ------------------------------------------------------------ boot / keys */
+
+  // VIDAA remotes send classic keyCodes plus Hisense-specific ones (dev book
+  // §5/§9: 29460/29461 D-pad, 29443 OK, 10009/461 Back). The same buttons on
+  // other firmwares arrive as event.key names. Both are normalised here, with
+  // the names first so a desktop browser and the E2E suite keep working.
+  var KEYCODES = {
+    up: [38, 29460, 203, 215],
+    down: [40, 29461, 204, 216],
+    left: [37, 4, 205, 218],
+    right: [39, 5, 206, 217],
+    ok: [13, 29443, 65376, 195],
+    back: [8, 27, 461, 10009, 88],
+    playPause: [179, 463, 10252, 415, 207, 19, 119],
+    stop: [413],
+    channelUp: [427, 33],
+    channelDown: [428, 34]
+  };
+  var KEYNAMES = {
+    ArrowUp: "up", Up: "up", ArrowDown: "down", Down: "down",
+    ArrowLeft: "left", Left: "left", ArrowRight: "right", Right: "right",
+    Enter: "ok", Select: "ok", Return: "ok", " ": "ok",
+    Escape: "back", Backspace: "back", GoBack: "back", BrowserBack: "back",
+    MediaPlayPause: "playPause", Play: "playPause", Pause: "playPause",
+    MediaStop: "stop", ChannelUp: "channelUp", ChannelDown: "channelDown"
+  };
+
+  function canonicalKey(event) {
+    if (!event) return "";
+    var key = typeof event.key === "string" ? event.key : "";
+    if (KEYNAMES[key]) return KEYNAMES[key];
+    if (/^[0-9]$/.test(key) || key === "." || key === ":") return key;
+    var code = Number(event.keyCode || event.which || 0);
+    if (!code) return "";
+    if (code >= 48 && code <= 57) return String.fromCharCode(code);
+    if (code >= 96 && code <= 105) return String.fromCharCode(code - 48);
+    if (code === 190 || code === 110) return ".";
+    if (code === 186 || code === 59) return ":";
+    for (var name in KEYCODES) {
+      if (KEYCODES[name].indexOf(code) >= 0) return name;
+    }
+    return "";
+  }
+
+  function prevent(ev) {
+    try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e) {}
+  }
+
+  function onKeyDown(event) {
+    var ev = event || window.event || {};
+    if (ev.__sideeHandled) return;
+    try { ev.__sideeHandled = true; } catch (e) {}
+    var name = canonicalKey(ev);
+    if (!name) return;
+    if (state.streaming) {
+      if (!el.tap.hidden && name === "ok") {
+        prevent(ev);
+        el.tap.hidden = true;
+        el.video.muted = false;
+        tryPlay();
+        return;
+      }
+      if (name === "back") {
+        prevent(ev);
+        stopSession();
+        return;
+      }
+      if (ev.key === "F1" || ev.key === "Info" || ev.key === "i") {
+        prevent(ev);
+        showOverlay();
+        el.stats.hidden = false;
+        return;
+      }
+      if (remotePadKey(name, true)) {
+        prevent(ev);
+        showOverlay();
+      }
+      return;
+    }
+    // A TV remote sends the number keys as "0".."9" (or their keyCodes): they
+    // edit the PC address wherever focus is inside the connect view, so no mouse
+    // and no focusable text field are needed.
+    if (!el.viewConnect.hidden && /^[0-9.:]$/.test(name)) {
+      prevent(ev);
+      focusNode(el.addr);
+      applyAddressKey(name);
+      return;
+    }
+    if (ev.target && ev.target.tagName === "INPUT") {
+      if (name === "back") { prevent(ev); ev.target.blur(); return; }
+      if (name === "ok") { prevent(ev); el.connectBtn.click(); return; }
+      if (name === "up" || name === "down" || name === "left" || name === "right") {
+        prevent(ev);
+        moveFocus(name);
+        return;
+      }
+      return;
+    }
+    if (name === "up" || name === "down" || name === "left" || name === "right") {
+      prevent(ev);
+      moveFocus(name);
+      return;
+    }
+    // Some TV webviews deliver OK as a plain keyCode without activating the
+    // focused control: press it explicitly, once, with the default action off.
+    if (name === "ok" && !ev.repeat) {
+      var active = document.activeElement;
+      if (active && active !== document.body && active.classList
+        && active.classList.contains("focusable") && typeof active.click === "function") {
+        prevent(ev);
+        active.click();
+        return;
+      }
+    }
+    if (name === "back") {
+      if (state.view === "pair") { prevent(ev); cancelPairing(); return; }
+      if (state.view === "library" && state.authorized) { prevent(ev); disconnectToHosts(); return; }
+    }
+  }
+
+  function onKeyUp(event) {
+    var ev = event || window.event || {};
+    if (ev.__sideeHandled) return;
+    try { ev.__sideeHandled = true; } catch (e) {}
+    if (state.streaming && remotePadKey(canonicalKey(ev), false)) prevent(ev);
+  }
+
+  // Both targets on purpose: some TV webviews deliver keys at document level,
+  // others only once they bubble. The flag keeps a key from running twice.
+  window.addEventListener("keydown", onKeyDown);
+  document.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  document.addEventListener("keyup", onKeyUp);
+
+  function cancelPairing() {
+    state.pairing = false;
+    if (state.pinTimer) { clearTimeout(state.pinTimer); state.pinTimer = null; }
+    showPairError("");
+    setPill("Not paired", "");
+    showView("connect");
+  }
+
+  el.keypad.addEventListener("click", function (event) {
+    var button = event.target && event.target.closest ? event.target.closest("[data-key]") : null;
+    if (!button) return;
+    applyAddressKey(button.getAttribute("data-key"));
+  });
+  el.addr.addEventListener("focus", function () { el.addrField.classList.add("active"); });
+  el.addr.addEventListener("blur", function () { el.addrField.classList.remove("active"); });
+  el.addr.addEventListener("input", renderAddressHint);
+
+  el.connectBtn.addEventListener("click", function () {
+    var parsed = parseAddress(el.addr.value);
+    if (!parsed) {
+      showConnectError("Invalid address. Example: 192.168.1.20 or 192.168.1.20:8000");
+      return;
+    }
+    connect(parsed.host, parsed.port);
+  });
+  el.refreshBtn.addEventListener("click", function () {
+    var parsed = parseAddress(el.addr.value);
+    if (parsed) connect(parsed.host, parsed.port);
+  });
+  el.newPinBtn.addEventListener("click", function () { beginPairing("New PIN: enter it in Sunshine."); });
+  el.cancelPairBtn.addEventListener("click", cancelPairing);
+  el.qualityBtn.addEventListener("click", cycleQuality);
+  el.changePcBtn.addEventListener("click", disconnectToHosts);
+  el.tapBtn.addEventListener("click", function () {
+    el.tap.hidden = true;
+    el.video.muted = false;
+    tryPlay();
+  });
+  el.stream.addEventListener("click", function () {
+    showOverlay();
+  });
+
+  el.verLine.textContent = "v" + VERSION;
+  el.libBuild.textContent = "Moonlight Local · v" + VERSION;
+  renderHosts();
+  renderQuality();
+  setPill("Not connected", "");
+
+  var query = {};
+  try {
+    var params = new URLSearchParams(window.location.search);
+    params.forEach(function (value, key) { query[key] = value; });
+  } catch (e) {}
+  if (query.host) {
+    var parsedQuery = parseAddress(query.host + (query.port ? ":" + query.port : ""));
+    if (parsedQuery) {
+      el.addr.value = addressLabel(parsedQuery.host, parsedQuery.port);
+      setTimeout(function () { connect(parsedQuery.host, parsedQuery.port); }, 200);
+    }
+  } else if (prefs.lastAddress && prefs.lastAddress.host) {
+    el.addr.value = addressLabel(prefs.lastAddress.host, prefs.lastAddress.port || DEFAULT_PORT);
+    state.addressPrefilled = true;
+  } else if (prefs.hosts.length) {
+    el.addr.value = addressLabel(prefs.hosts[0].host, prefs.hosts[0].port);
+    state.addressPrefilled = true;
+  }
+  renderAddressHint();
+  setTimeout(function () {
+    if (!state.ws) firstFocusable(el.viewConnect);
+  }, 80);
+
+  // Test hook: the offline suite checks the cryptography, the SDP rewrites and
+  // the mode picker against known vectors without a PC or a TV.
+  window.SideeMoonlight = {
+    version: VERSION,
+    authProof: authProof,
+    sha256Hex: function (text) { return bytesToHex(sha256Bytes(asciiBytes(text))); },
+    hmacHex: function (keyHex, text) { return bytesToHex(hmacSha256(hexToBytes(keyHex), asciiBytes(text))); },
+    separateAudioSync: separateAudioSync,
+    stripImageattr: stripImageattr,
+    ensureStereoOpus: ensureStereoOpus,
+    parseAddress: parseAddress,
+    appendAddressKey: appendAddressKey,
+    applyAddressKey: applyAddressKey,
+    canonicalKey: canonicalKey,
+    focusNode: focusNode,
+    moveFocus: moveFocus,
+    buildQualities: buildQualities,
+    chooseQuality: chooseQuality,
+    readPad: readPad,
+    samePad: samePad,
+    PAD: PAD,
+    state: state
+  };
+})();
+</script>
+</body>
+</html>

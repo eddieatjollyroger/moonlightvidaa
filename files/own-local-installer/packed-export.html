@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Export Packed Local Bundle</title>
+<style>
+body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
+h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:170px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>EXPORT PACKED LOCAL BUNDLE</h1>
+<p>READ ONLY. BASE64 GOES TO EXISTING METRICS LOG. NO WRITE.</p>
+<div>
+<button id="export">1 EXPORT TO LOGS</button>
+<button id="verify">2 VERIFY SOURCE</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var LOG='https://moonlight.joaopacheco.me:8444/api/log';
+var SRC='emanual/Local_ebook/ownmoon-local.html';
+var TAG='PACK1';
+var CHUNK=700;
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function read(path){
+  var r=call('fileRead',{path:path,mode:6});
+  if(!isOk(r))throw new Error('READ '+path+' '+JSON.stringify(r).slice(0,250));
+  var t=body(r);if(t===null)throw new Error('NO BODY '+path);
+  return t;
+}
+function pause(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function post(tag,text){
+  var s=String(text==null?'':text);
+  var n=Math.max(1,Math.ceil(s.length/CHUNK));
+  for(var i=0;i<n;i++){
+    var payload='SIDEE '+tag+' '+i+'/'+n+' '+s.slice(i*CHUNK,(i+1)*CHUNK);
+    for(var attempt=0;attempt<2;attempt++){
+      try{await fetch(LOG,{method:'POST',body:payload,mode:'no-cors',keepalive:true});break;}catch(e){}
+      await pause(200);
+    }
+    await pause(120);
+  }
+  return n;
+}
+function b64(bytes){
+  var bin='',step=8192;
+  for(var i=0;i<bytes.length;i+=step){
+    bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+step));
+  }
+  return btoa(bin);
+}
+async function gzipBytes(bytes){
+  if(typeof CompressionStream==='undefined')return {bytes:bytes,gz:0};
+  try{
+    var stream=new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+    return {bytes:new Uint8Array(await new Response(stream).arrayBuffer()),gz:1};
+  }catch(e){return {bytes:bytes,gz:0};}
+}
+async function sha256(text){
+  if(!window.crypto||!crypto.subtle)throw new Error('NO SUBTLECRYPTO');
+  var bytes=new TextEncoder().encode(text);
+  var buf=await crypto.subtle.digest('SHA-256',bytes);
+  var arr=new Uint8Array(buf),hex='';
+  for(var i=0;i<arr.length;i++)hex+=('0'+arr[i].toString(16)).slice(-2);
+  return hex;
+}
+function head(text,n){return text.slice(0,n||80).replace(/\s+/g,' ');}
+
+document.getElementById('export').addEventListener('click',async function(){
+  clear();
+  try{
+    var text=read(SRC);
+    var bytes=new TextEncoder().encode(text);
+    var packed=await gzipBytes(bytes);
+    var encoded=b64(packed.bytes);
+    var hash=await sha256(text);
+    var n=await post(TAG,encoded);
+    await post('PACKINFO','GZIP '+packed.gz+' B64LEN '+encoded.length+' CHUNKS '+n+' BYTES '+bytes.length+' SHA '+hash);
+    ok('BYTES '+bytes.length);
+    ok('GZIP '+packed.gz);
+    ok('B64LEN '+encoded.length);
+    ok('CHUNKS '+n);
+    ok('SHA '+hash);
+    warn('CHECK LOGS FOR SIDEE PACKINFO');
+  }catch(e){bad(e.message);}
+});
+
+document.getElementById('verify').addEventListener('click',async function(){
+  clear();
+  try{
+    var text=read(SRC);
+    ok('BYTES '+new TextEncoder().encode(text).length);
+    ok('SHA '+await sha256(text));
+    ok('HEAD '+head(text,80));
+  }catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>
