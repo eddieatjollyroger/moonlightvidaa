@@ -30,6 +30,18 @@ This lane is firmware-branch dependent:
 Use `probe.html` from this folder on the TV. It detects the bridge and reads
 `websdk/Appinfo.json` without writing.
 
+## Observed on our TV (2026-11-26)
+
+- `HiUtils_createRequest` is a function; `Hisense_installApp` and
+  `Hisense_uninstallApp` are undefined. The `Appinfo.json` lane is the one to use.
+- Read probe returned the installed app list: `fileRead` mode 6 is open.
+- Backup to `websdk/Appinfo.json.ownbak-20261126` returned `ret:true`.
+- Writing `websdk/ownmoon/probe.txt` failed with `errno -2 ENOENT syscall open`.
+  The bridge has no documented `mkdir`, so new nested directories cannot be created.
+- Therefore the bundle must be a **single flat file**:
+  `websdk/ownmoon.html`, not `websdk/ownmoon/index.html`.
+  `make_bundle.py` in this folder inlines all JS/CSS into that one file.
+
 ## Product-lane entry shape
 
 From `/Users/joaopacheco/vidaa-edge/src/app/services/app-management.service.ts`:
@@ -44,8 +56,8 @@ apps.AppInfo.push({
   Id: 'ownmoon',
   AppName: 'Own Moon',
   Title: 'Own Moon',
-  URL: 'file:///APPS/websdk/ownmoon/index.html',
-  StartCommand: 'file:///APPS/websdk/ownmoon/index.html',
+  URL: 'file:///APPS/websdk/ownmoon.html?host=192.168.1.107&port=8000&v=1',
+  StartCommand: 'file:///APPS/websdk/ownmoon.html?host=192.168.1.107&port=8000&v=1',
   IconURL: 'https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png',
   Icon_96: 'https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png',
   Image: 'https://moonlight.joaopacheco.me/own-webrtc/assets/moonlight-icon.png',
@@ -114,3 +126,13 @@ Not allowed:
 - Uninstall = remove only `Id: ownmoon`, write the file back, restart TV.
 - Stop the Pi static server if using HTTP icons.
 - OTA may clear `/APPS/websdk/Appinfo.json`; re-register or untick as needed.
+
+## Files in this folder
+
+- `probe.html` - read-only bridge/Appinfo probe.
+- `stage-probe.html` - backup + flat text write/read test.
+- `make_bundle.py` - inlines `../own-webrtc` into `ownmoon.html`.
+- `ownmoon.html` - generated single-file local app bundle (178,299 bytes).
+- `install-ownmoon.html` - app-level installer using only documented mode-6
+  `fileRead`/`fileWrite`. Buttons: backup, write bundle, add tile, readback,
+  remove tile, restore.
