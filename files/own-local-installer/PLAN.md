@@ -189,3 +189,12 @@ is not the cause. New variants remove `gamepadUiNavigation.start()`,
 including MIN TAIL, so the problem is earlier in the `app.js` body.
 `make_app_bisect.py` + `app-bisect.html` now test syntactically valid 10%–100%
 prefixes of `app.js` appended to the known-good JS8 bundle.
+
+Sidee inspection: `sidee-read.html` logged 108 chunks of the installed
+`emanual/Local_ebook/index.html`. It is a packed loader:
+`var M={"moonlight":"H4sIA...","emu":"H4sIA..."...}`. There are no external
+`src`/`href` assets, so `READ ASSETS` correctly said `FAIL READ INDEX FIRST` —
+the reader was looking for the wrong thing. `sidee-read2.html` extracts the
+`moonlight` gzip+base64 blob and decompresses it in-page with
+`DecompressionStream('gzip')`, then logs `D2HEAD`, `D2TAIL`, `D2URLS`, `D2SUM`.
+No Sidee code is copied into our client; this is read-only comparison.

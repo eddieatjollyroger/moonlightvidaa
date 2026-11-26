@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sidee Bundle Reader Two</title>
+<style>
+body{background:#111;color:#eee;font:17px sans-serif;margin:20px}
+h1{font-size:26px}button{font:16px sans-serif;margin:3px 4px;padding:7px 10px}
+input{font:16px sans-serif;width:60vw;padding:7px}
+pre{white-space:pre-wrap;word-break:break-all;background:#000;padding:16px;min-height:190px}
+.ok{color:#7f7}.bad{color:#f77}.warn{color:#fc3}
+</style>
+</head>
+<body>
+<h1>SIDEE READER TWO</h1>
+<p>READ ONLY. DECOMPRESSES M.moonlight IN PAGE. NO CLIENT CODE IS COPIED.</p>
+<div>
+<button id="decode">1 DECODE MOONLIGHT</button>
+<button id="full">2 FULL DECODE</button>
+<input id="path" value="emanual/Local_ebook/index.html">
+<button id="one">3 READ PATH</button>
+</div>
+<pre id="out">READY</pre>
+<script>
+var ROOT='emanual/Local_ebook/';
+var LOG='https://moonlight.joaopacheco.me:8444/api/log';
+var decoded='';
+
+function out(s,cls){var d=document.createElement('div');if(cls)d.className=cls;d.textContent=s;document.getElementById('out').appendChild(d);}
+function clear(){document.getElementById('out').textContent='';}
+function ok(s){out('OK '+s,'ok');}
+function bad(s){out('FAIL '+s,'bad');}
+function warn(s){out('NOTE '+s,'warn');}
+function call(api,params){
+  if(typeof HiUtils_createRequest!=='function')throw new Error('HIUTILS MISSING');
+  return HiUtils_createRequest(api,params);
+}
+function isOk(r){return !!(r&&r.ret);}
+function body(r){return (r&&typeof r.msg==='string')?r.msg:null;}
+function post(tag,text){
+  var s=String(text==null?'':text);
+  var size=3000;
+  var n=Math.max(1,Math.ceil(s.length/size));
+  for(var i=0;i<n;i++){
+    var chunk=s.slice(i*size,(i+1)*size);
+    try{
+      fetch(LOG,{method:'POST',body:'SIDEE '+tag+' '+i+'/'+n+' '+chunk,mode:'no-cors',keepalive:true});
+    }catch(e){}
+  }
+}
+function readRaw(path){
+  var r=call('fileRead',{path:path,mode:6});
+  if(!isOk(r))throw new Error('READ '+path+' '+JSON.stringify(r).slice(0,250));
+  var t=body(r);if(t===null)throw new Error('NO BODY '+path);
+  return t;
+}
+function readOne(path,tag){
+  var t=readRaw(path);
+  post(tag,t);
+  ok(tag+' LEN '+t.length);
+  return t;
+}
+function extractBlob(text,key){
+  var re=new RegExp('"'+key+'"\\s*:\\s*"([A-Za-z0-9+/=]{100,})"');
+  var m=re.exec(text);
+  return m?m[1]:null;
+}
+function b64ToBytes(b64){
+  var bin=atob(b64);
+  var bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+async function gunzipB64(b64){
+  if(typeof DecompressionStream==='undefined')throw new Error('NO DECOMPRESSIONSTREAM');
+  var bytes=b64ToBytes(b64);
+  var stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(stream).text();
+}
+function unique(list){
+  var seen={},out=[];
+  list.forEach(function(v){if(!seen[v]){seen[v]=1;out.push(v);}});
+  return out;
+}
+function urls(text){
+  var re=/(?:wss?:\/\/|https?:\/\/)[^\s"'`<>\\]+/gi;
+  var found=[],m;
+  while((m=re.exec(text))!==null)found.push(m[0]);
+  return unique(found).slice(0,120);
+}
+function snippets(text){
+  var re=/(?:wss?:\/\/|https?:\/\/)[^\s"'`<>\\]+|WebSocket|RTCPeerConnection|createOffer|createAnswer|setRemoteDescription|setLocalDescription|addIceCandidate|gateway-status|start-session|Sunshine|requestFullscreen|DOMContentLoaded|location\.search|app=moonlight|file:\/\//gi;
+  var hits=[],m;
+  while((m=re.exec(text))!==null&&hits.length<140){
+    var start=Math.max(0,m.index-180);
+    var end=Math.min(text.length,m.index+m[0].length+180);
+    hits.push('@'+m.index+' '+text.slice(start,end).replace(/\s+/g,' '));
+    if(re.lastIndex===m.index)re.lastIndex++;
+  }
+  return hits;
+}
+async function decode(full){
+  clear();decoded='';
+  try{
+    var idx=readRaw(ROOT+'index.html');
+    ok('INDEX LEN '+idx.length);
+    var b64=extractBlob(idx,'moonlight');
+    if(!b64)throw new Error('NO MOONLIGHT BLOB');
+    ok('B64 LEN '+b64.length);
+    decoded=await gunzipB64(b64);
+    ok('DECODED '+decoded.length);
+
+    var u=urls(decoded);
+    var s=snippets(decoded);
+    post('D2HEAD',decoded.slice(0,12000));
+    post('D2TAIL',decoded.slice(Math.max(0,decoded.length-12000)));
+    post('D2URLS',u.join('\n'));
+    post('D2SUM',s.join('\n'));
+    ok('URLS '+u.length);
+    ok('SUMMARY '+s.length);
+    if(full){
+      post('D2FULL',decoded);
+      warn('FULL LOGGED');
+    }
+    warn('CHECK LOGS D2HEAD D2TAIL D2URLS D2SUM');
+  }catch(e){
+    bad(e.message);
+    post('D2ERR',e.message);
+  }
+}
+
+document.getElementById('decode').addEventListener('click',function(){decode(false);});
+document.getElementById('full').addEventListener('click',function(){decode(true);});
+document.getElementById('one').addEventListener('click',function(){
+  clear();
+  var p=document.getElementById('path').value.trim();
+  if(!p){bad('EMPTY PATH');return;}
+  try{readOne(p,'ONE_'+p.split('/').pop());warn('SEE LOGS');}
+  catch(e){bad(e.message);}
+});
+</script>
+</body>
+</html>
